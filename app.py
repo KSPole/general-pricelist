@@ -1,139 +1,515 @@
-import streamlit as st
-import base64
-import pandas as pd
-from datetime import datetime
+# =============================================================================
+# 📌 한국시스템폴 디지털 단가표 - 메인 대시보드
+# =============================================================================
+
 import os
+import re
+import datetime
+import streamlit as st
+import pandas as pd
+import streamlit.components.v1 as components
+import utils
+import prod_cctv
+import prod_wall
+import prod_band
+import prod_sus_band
+import prod_roof
+import prod_ceiling
+import prod_hari
+import prod_lobby
+import prod_bullet_angle
+import prod_anchor_base
+import prod_base_cover
+import prod_cctv_panel
+import prod_enclosure
+import prod_others
 
-# --- 1. 기본 설정 및 파비콘 ---
-favicon_base64 = "iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAABVElEQVRYR+2WwU3DMBhGn3gE2AANsAEdAbhA0m6AEdoNkA1aNtAxwAZ0A1hB0gKxA2yARyB8UpUoTpzYiUNV/ZOT+Hn9+f+xZck5x1mW/bDWftm2vd/v97v9fr/Vdd11XR9qrf16vT7e7/efHMcxhmH4tNa+TNM0hRDONsYYzrmXbds+GGMeg8Fgu1qt3gRBhEajwX6/P2y3288wDHkYhgchxN5aezFN09xae5dluVqtVovP5/PZ9Xq9GIZhwBhziTHmdrPZPO73+ykhZLTWPkopt2maXmRZfjPGPG2322tVVS9KKf7p+35f1/UnY8zjZrN5U0rxn36/Hw3D8FfX9WEYho9Syn0YhvX9fv+z1Wrl+Xz+LKVc+/3+bxiGnxJCLsMw3Aoh3gVBMBsMBqMQIuec35RS/NM0Te/WOt638fG/wD/yAv+kHwG+wBf4Al/gC3yBL/AFvsAX+AJf4Aua7z/g2/0N/wD/+Qe8AL5Gz3T0SgAAAABJRU5ErkJggg=="
+st.set_page_config(page_title="한국시스템폴 디지털 단가표", layout="wide")
 
-st.set_page_config(
-    page_title="한국시스템폴 단가표",
-    page_icon=f"data:image/png;base64,{favicon_base64}",
-    layout="centered",
-    initial_sidebar_state="collapsed"
-)
-
-# 1번 & 3번 요구사항: 상단 공백 제거 및 스크롤 없는 화면 압축 스타일(CSS) 주입
-st.markdown(
-    f"""
-    <link rel="shortcut icon" href="data:image/png;base64,{favicon_base64}">
-    <link rel="apple-touch-icon" href="data:image/png;base64,{favicon_base64}">
-    <style>
-        /* 최상단 마진 및 패딩 극소화 */
-        .block-container {{
-            padding-top: 0.5rem !important;
-            padding-bottom: 0.5rem !important;
-            max-width: 450px !important;
-        }}
-        /* 타이틀 디자인 및 여백 제거 */
-        h1 {{
-            text-align: center;
-            font-size: 2.4rem !important;
-            line-height: 1.2 !important;
-            margin-top: 0px !important;
-            margin-bottom: 5px !important;
-            padding-bottom: 5px !important;
-            font-weight: 800 !important;
-            color: #1e293b;
-        }}
-        /* 안내 문구 간격 축소 */
-        .caption-text {{
-            text-align: center;
-            font-size: 0.9rem;
-            color: #64748b;
-            margin-bottom: 10px;
-        }}
-        /* 입력창 라벨 및 높이 압축 */
-        label {{
-            margin-bottom: 2px !important;
-            font-size: 0.85rem !important;
-        }}
-        .stTextInput > div > div > input {{
-            padding: 4px 10px !important;
-            height: 38px !important;
-        }}
-        .stSelectbox > div > div > div {{
-            padding: 4px 10px !important;
-            height: 38px !important;
-        }}
-        /* 버튼 조밀하게 배치 */
-        .stButton>button {{
-            width: 100%;
-            background-color: #004b9b;
-            color: white;
-            font-weight: bold;
-            height: 42px !important;
-            margin-top: 10px !important;
-            border-radius: 6px;
-        }}
-        /* 탭 간격 조절 */
-        .stTabs [data-baseweb="tab-list"] {{
-            gap: 8px;
-            margin-bottom: 10px;
-        }}
-        .stTabs [data-baseweb="tab"] {{
-            height: 35px;
-            font-size: 0.85rem;
-        }}
-    </style>
-    """,
-    unsafe_allow_html=True
-)
-
-LOG_FILE = "access_log.csv"
-
-def save_log(company_name, position, user_name):
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    new_data = pd.DataFrame([[now, company_name, position, user_name]], 
-                            columns=["접속시간", "업체명", "직급", "성명"])
-    if os.path.exists(LOG_FILE):
-        log_df = pd.read_csv(LOG_FILE)
-        log_df = pd.concat([log_df, new_data], ignore_index=True)
-    else:
-        log_df = new_data
-    log_df.to_csv(LOG_FILE, index=False, encoding='utf-8-sig')
-
-# --- 3. 메인 화면 구성 ---
-
-# 2번 요구사항: "한국시스템폴" 줄바꿈 "단가표"로 위쪽 공간에 표시
-st.markdown("<h1>한국시스템폴<br>단가표</h1>", unsafe_allow_html=True)
-
-# 1번 요구사항: 일반접속과 관리자 전용 메뉴 분리 (로그 확인은 관리자 탭 내부에만 존재)
-tab1, tab2 = st.tabs(["일반 업체 접속", "본사직원/관리자 전용"])
-
-with tab1:
-    st.markdown("<p class='caption-text'>단가표 확인을 위해 정보를 입력해 주세요.</p>", unsafe_allow_html=True)
+# 👉 자바스크립트를 이용해 영어가 화면에 뜨자마자 한글로 강제 변환
+components.html("""
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const parentDoc = window.parent.document;
     
-    # 3번 요구사항: 스크롤 없이 한 화면에 다 들어오도록 촘촘하게 배치
-    company_name = st.text_input("업체명", placeholder="예: 한국시스템폴")
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        user_name = st.text_input("성명", placeholder="예: 홍길동")
-    with col2:
-        position = st.selectbox("직급", ["대표", "이사", "부장", "차장", "과장", "대리", "사원", "기타"])
-    
-    if st.button("단가표 접속하기"):
-        if company_name and user_name:
-            save_log(company_name, position, user_name)
-            st.success(f"{company_name} {user_name}님 환영합니다. 단가표로 이동합니다.")
-        else:
-            st.error("업체명과 성명을 모두 입력해 주세요.")
+    function enforceLowercaseKeyboard() {
+        const pwInputs = parentDoc.querySelectorAll('input[type="password"]');
+        pwInputs.forEach(input => {
+            input.setAttribute("autocapitalize", "none"); 
+            input.setAttribute("autocorrect", "off");     
+            input.setAttribute("spellcheck", "false");    
+        });
+    }
 
-with tab2:
-    st.write("본사 관리자 인증 메뉴입니다.")
-    admin_password = st.text_input("관리자 비밀번호", type="password", key="admin_pwd")
+    function translateUploader() {
+        const elements = parentDoc.querySelectorAll('span, div, small');
+        elements.forEach(el => {
+            if (el.childNodes.length === 1 && el.childNodes[0].nodeType === 3) {
+                const text = el.textContent.trim();
+                if (text === "Drag and drop file here" || text === "Drag and drop files here") {
+                    el.textContent = "📁 여기에 파일을 드래그 앤 드롭 하세요";
+                } else if (text === "Browse files") {
+                    el.textContent = "첨부하기";
+                } else if (text.includes("Limit 200MB per file")) {
+                    el.textContent = "파일당 최대 200MB";
+                }
+            }
+        });
+    }
+
+    enforceLowercaseKeyboard();
+    translateUploader();
+
+    const observer = new MutationObserver(() => {
+        enforceLowercaseKeyboard();
+        translateUploader();
+    });
+    observer.observe(parentDoc.body, { childList: true, subtree: true });
+
+    if (!parentDoc.getElementById("custom-enter-js")) {
+        const script = parentDoc.createElement("script");
+        script.id = "custom-enter-js";
+        script.innerHTML = `
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    const active = document.activeElement;
+                    if (active && active.tagName === 'INPUT' && (active.type === 'text' || active.type === 'number' || active.type === 'email')) {
+                        if (active.closest('form')) return;
+                        e.preventDefault();
+                        if (active.placeholder && active.placeholder.includes("연락처")) {
+                            const clean_val = active.value.replace(/[^0-9]/g, '');
+                            if (clean_val.length < 9) {
+                                alert("⚠️ 연락처를 정확하게 입력해 주세요.");
+                                return; 
+                            }
+                        }
+                        const inputs = Array.from(document.querySelectorAll('input[type="text"], input[type="number"], input[type="email"]'));
+                        const idx = inputs.indexOf(active);
+                        if (idx > -1 && idx < inputs.length - 1) inputs[idx + 1].focus();
+                        else active.blur();
+                    }
+                }
+            }, true);
+        `;
+        parentDoc.head.appendChild(script);
+    }
+});
+</script>
+""", height=0, width=0)
+
+st.markdown("""
+<style>
+    .block-container { padding-top: 2.5rem !important; padding-bottom: 1.5rem !important; }
+    h1 { text-align: center; line-height: 1.3; font-size: 32px !important; color: #333; margin-top: 10px !important; margin-bottom: 25px !important; letter-spacing: -1px; }
+    h2 { font-size: 24px !important; border-bottom: 2px solid #2e6c80; padding-bottom: 8px; margin-top: 15px !important; margin-bottom: 15px !important; color: #2e6c80; }
+    div[data-testid="stSelectbox"] label p, div[data-testid="stNumberInput"] label p, div[data-testid="stTextInput"] label p, div[data-testid="stRadio"] label p { 
+        font-size: 15px !important; font-weight: bold !important; color: #333; margin-bottom: 2px !important; 
+    }
+    .option-group-title { font-size: 17px; font-weight: bold; color: #fff; background-color: #2e6c80; padding: 4px 10px; border-radius: 4px; margin-top: 10px; margin-bottom: 5px; }
+    .cart-card { background-color: #fff; border: 1px solid #e0e0e0; border-radius: 12px; padding: 16px; margin-bottom: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.04); position: relative; }
+    .cart-del-btn { position: absolute; top: 12px; right: 12px; z-index: 10; }
+    .cart-header { font-size: 24px; font-weight: 900; color: #2e6c80; margin-bottom: 8px; letter-spacing: -0.5px; width: 80%; }
+    .cart-price-row { text-align: right; margin-top: 5px; }
+    .cart-total { font-size: 20px; font-weight: bold; color: #d9534f; }
+    .summary-box { background-color: #fff; border: 2px solid #2e6c80; border-radius: 12px; padding: 20px; margin-top: 15px; margin-bottom: 15px; text-align: center; box-shadow: 0 4px 10px rgba(46,108,128,0.15); }
+    .summary-price { font-size: 32px; font-weight: 900; color: #e53935; letter-spacing: -1px; }
+</style>
+""", unsafe_allow_html=True)
+
+# -----------------------------------------------------------------------------
+# 1. 상태 로드 및 변수 초기화
+# -----------------------------------------------------------------------------
+products_df, options_df = utils.load_data()
+categories = list(products_df['카테고리'].dropna().unique())
+
+if "뷸렛카메라박스" in categories:
+    categories[categories.index("뷸렛카메라박스")] = "뷸렛카메라박스 / 각도기"
+
+if 'logged_in' not in st.session_state: st.session_state.logged_in = False
+if 'is_admin' not in st.session_state: st.session_state.is_admin = False
+if 'cart' not in st.session_state: st.session_state.cart = []
+if 'selected_cat' not in st.session_state: st.session_state.selected_cat = None
+if 'rk_main' not in st.session_state: st.session_state.rk_main = 0       
+if 'rk_lvl1' not in st.session_state: st.session_state.rk_lvl1 = 0       
+if 'rk_lvl2' not in st.session_state: st.session_state.rk_lvl2 = 0       
+if 'admin_login_error' not in st.session_state: st.session_state.admin_login_error = False
+
+for field in ['c_name', 'p_name', 'p_phone', 'c_email', 'd_addr', 'd_branch']:
+    if field not in st.session_state: st.session_state[field] = ""
+
+rk = st.session_state.rk_main
+
+# -----------------------------------------------------------------------------
+# 2. 로그인 폼 (일반 고객 및 관리자)
+# -----------------------------------------------------------------------------
+if not st.session_state.logged_in:
+    st.markdown("<div style='max-width: 600px; margin: 40px auto; text-align: center;'>", unsafe_allow_html=True)
     
-    if st.button("관리자 로그인"):
-        if admin_password == "ksp1234":
-            st.success("관리자 인증 성공")
-            st.subheader("📊 실시간 접속 로그 확인")
-            
-            if os.path.exists(LOG_FILE):
-                log_data = pd.read_csv(LOG_FILE)
-                st.dataframe(log_data.sort_values(by="접속시간", ascending=False), use_container_width=True)
+    # 요구사항 1: 메인화면 두 줄 타이틀 적용
+    st.markdown("<h1 style='color: #2e6c80; margin-bottom: 30px; font-weight: 900;'>한국시스템폴<br>제품 단가표</h1>", unsafe_allow_html=True)
+    
+    with st.form("login_form"):
+        # 요구사항 3: 메일, 이름 삭제 -> 업체명과 연락처 2가지만 입력
+        c_name = st.text_input("업체명 (상호) *", placeholder="예: 한국시스템폴 (입력 후 엔터)")
+        p_phone_str = st.text_input("연락처 *", placeholder="연락처 숫자만 입력 (정확하게 입력, 입력 후 엔터)")
+        
+        st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
+        submitted = st.form_submit_button("단가표 접속하기", type="primary", use_container_width=True)
+        
+        if submitted:
+            p_phone = re.sub(r'[^0-9]', '', p_phone_str) 
+            if not c_name.strip() or not p_phone: 
+                st.warning("⚠️ 업체명과 연락처를 모두 입력해 주셔야 접속이 가능합니다.")
+            elif len(p_phone) < 9: 
+                st.warning("⚠️ 연락처를 정확하게 입력해 주세요. (9자리 이상)")
             else:
-                st.info("아직 누적된 접속 기록이 없습니다.")
+                st.session_state.update({"c_name":c_name, "p_phone":p_phone, "logged_in":True, "is_admin": False})
+                now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                try:
+                    # 로그 기록 저장
+                    log_data = pd.DataFrame([{"접속일시": now, "업체명": c_name, "연락처": p_phone}])
+                    if not os.path.exists("access_log.csv"): 
+                        log_data.to_csv("access_log.csv", index=False, encoding='utf-8-sig')
+                    else: 
+                        log_data.to_csv("access_log.csv", mode='a', header=False, index=False, encoding='utf-8-sig')
+                except: 
+                    pass 
+                st.rerun()
+                
+    st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("<div style='margin-top: 30px;'></div>", unsafe_allow_html=True)
+    
+    # 요구사항 2 & 4: 관리자 접속 유지 및 비밀번호 locker1092*** 유지
+    with st.expander("🛠️ 본사 직원 / 관리자 전용 바로 접속"):
+        def do_admin_login():
+            pw = st.session_state.get('pw_bypass', '')
+            if pw.lower() == "locker1092***":
+                st.session_state.update({"c_name":"한국시스템폴 (본사)", "p_phone":"010-0000-0000", "logged_in":True, "is_admin": True})
+            elif pw: 
+                st.session_state.admin_login_error = True
+                
+        admin_pw_bypass = st.text_input("직원 비밀번호 입력", placeholder="비밀번호 입력", key="pw_bypass", type="password", on_change=do_admin_login) 
+        if st.button("비밀번호로 즉시 접속", type="primary", use_container_width=True) or (admin_pw_bypass and st.session_state.get('pw_bypass') != ""):
+            do_admin_login()
+            if st.session_state.get('logged_in'): st.rerun()
+            
+        if st.session_state.get('admin_login_error'):
+            st.error("❌ 비밀번호가 틀렸습니다.")
+            st.session_state.admin_login_error = False
+            
+    st.stop()
+
+# -----------------------------------------------------------------------------
+# 3. 메인 대시보드 (단가표 & 관리자 로그 확인)
+# -----------------------------------------------------------------------------
+if st.session_state.is_admin:
+    # 요구사항 4: 관리자 로그인 시 단가표와 고객 로그를 한 화면에서 바로 확인
+    st.markdown("<h1>한국시스템폴<br>제품 단가표 <span style='font-size:18px; color:#d9534f; vertical-align:middle;'>(관리자 모드)</span></h1>", unsafe_allow_html=True)
+    
+    with st.expander("👑 고객 접속 로그 확인 (접속시간 / 업체명 / 연락처)"):
+        if os.path.exists("access_log.csv"):
+            try:
+                df_log = pd.read_csv("access_log.csv")
+                st.dataframe(df_log.sort_values(by="접속일시", ascending=False), use_container_width=True)
+                csv = df_log.to_csv(index=False, encoding='utf-8-sig').encode('utf-8-sig')
+                st.download_button(label="📥 접속 명단 엑셀 다운로드", data=csv, file_name='고객접속명단.csv', mime='text/csv')
+            except Exception: 
+                st.error("기록을 불러올 수 없습니다.")
+        else: 
+            st.info("아직 접속한 고객이 없습니다.")
+else:
+    st.markdown("<h1>한국시스템폴<br>제품 단가표</h1>", unsafe_allow_html=True)
+
+is_main_ready = False
+base_price = 0
+product_specs = ""
+valid_paths = []
+priced_options = []
+zero_options = []
+
+if st.session_state.selected_cat is None:
+    num_cols = 3 
+    for i in range(0, len(categories), num_cols):
+        cols = st.columns(num_cols)
+        for j in range(num_cols):
+            if i + j < len(categories):
+                cat = categories[i + j]
+                if cols[j].button(cat, use_container_width=True, type="secondary", key=f"cat_{cat}_{rk}"):
+                    st.session_state.selected_cat = cat
+                    st.session_state.rk_main += 1
+                    st.rerun()
+else:
+    if st.button(f"⬅️ {st.session_state.selected_cat} (뒤로가기)", type="primary"):
+        st.session_state.selected_cat = None
+        st.rerun()
+
+    excel_cat_name = "뷸렛카메라박스" if st.session_state.selected_cat == "뷸렛카메라박스 / 각도기" else st.session_state.selected_cat
+    cat_no_space = excel_cat_name.replace(" ", "")
+    filtered = products_df[products_df['카테고리'] == excel_cat_name]
+
+    if cat_no_space == "CCTV폴": res = prod_cctv.render(filtered, options_df, rk, cat_no_space)
+    elif cat_no_space == "벽부형브라켓": res = prod_wall.render(filtered, options_df, rk, cat_no_space)
+    elif cat_no_space == "밴드형브라켓": res = prod_band.render(filtered, options_df, rk, cat_no_space)
+    elif cat_no_space == "스텐(서스)밴드형브라켓": res = prod_sus_band.render(filtered, options_df, rk, cat_no_space)
+    elif cat_no_space == "옥상브라켓": res = prod_roof.render(filtered, options_df, rk, cat_no_space)
+    elif cat_no_space == "천장형브라켓": res = prod_ceiling.render(filtered, options_df, rk, cat_no_space)
+    elif cat_no_space == "하리형브라켓": res = prod_hari.render(filtered, options_df, rk, cat_no_space)
+    
+    elif "로비폰보강판" in cat_no_space: res = prod_lobby.render(filtered, options_df, rk, cat_no_space)
+    elif "뷸렛카메라박스" in cat_no_space or "각도기" in cat_no_space: res = prod_bullet_angle.render(filtered, options_df, rk, cat_no_space)
+    elif "앙카베이스" in cat_no_space: res = prod_anchor_base.render(filtered, options_df, rk, cat_no_space)
+    elif "베이스커버" in cat_no_space: res = prod_base_cover.render(filtered, options_df, rk, cat_no_space)
+    elif "CCTV작동중판넬" in cat_no_space: res = prod_cctv_panel.render(filtered, options_df, rk, cat_no_space)
+    elif "함체" in cat_no_space: res = prod_enclosure.render(filtered, options_df, rk, cat_no_space)
+    
+    else: res = prod_others.render(filtered, options_df, rk, cat_no_space)
+        
+    is_main_ready, base_price, product_specs, valid_paths, priced_options, zero_options = res
+
+# -----------------------------------------------------------------------------
+# 4. 장바구니 및 하단 로직 
+# -----------------------------------------------------------------------------
+if is_main_ready:
+    st.markdown("<h2>3. 단가 확인 및 파일(사진) 첨부</h2>", unsafe_allow_html=True)
+    mc1, mc2, mc3, mc4 = st.columns([4.5, 2, 2.5, 1])
+    quantity = mc4.number_input("수량", min_value=1, step=1, value=1, key=f"q_main_{rk}", label_visibility="collapsed")
+    
+    ui_img_html = ""
+    if valid_paths:
+        import utils
+        img_tags = [f"<img src='data:image/jpeg;base64,{utils.get_image_base64(p)}' height='50' style='border-radius:4px; border:1px solid #ddd; margin-right:5px; margin-top:5px;'>" for p in valid_paths if utils.get_image_base64(p)]
+        ui_img_html = f"<div>{''.join(img_tags)}</div>"
+        
+    mc1.markdown(f"<b>[{st.session_state.selected_cat}]</b> {product_specs}{ui_img_html}", unsafe_allow_html=True)
+    mc2.markdown(f"<div style='padding-top:2px; color:#555;'>단가: <b>{utils.format_price(base_price, product_specs)}</b></div>", unsafe_allow_html=True)
+    mc3.markdown(f"<div style='padding-top:2px; color:#d9534f; font-weight:bold;'>금액: {utils.format_price(base_price * quantity, product_specs)}</div>", unsafe_allow_html=True)
+    
+    for o in zero_options: st.markdown(f"&nbsp;&nbsp;&nbsp;&nbsp;💡 {o['display_name']}")
+    for idx, o in enumerate(priced_options):
+        c1, c2, c3, c4 = st.columns([4.5, 2, 2.5, 1])
+        opt_q = c4.number_input("수량", min_value=0, value=int(o['qty_per_main'] * quantity), key=f"q_opt_{idx}_{rk}_{quantity}", label_visibility="collapsed")
+        o['current_cart_q'], o['total_per_main'] = opt_q, o['unit_price'] * opt_q
+        
+        c1.markdown(f"<div style='padding-top:8px;'>└ {o['display_name']}</div>", unsafe_allow_html=True)
+        c2.markdown(f"<div style='padding-top:8px; color:#555;'>단가: <b>{utils.format_price(o['unit_price'], o['display_name'])}</b></div>", unsafe_allow_html=True)
+        c3.markdown(f"<div style='padding-top:8px; color:#d9534f; font-weight:bold;'>금액: {utils.format_price(o['total_per_main'], o['display_name'])}</div>", unsafe_allow_html=True)
+    
+    total = base_price * quantity + sum([o['total_per_main'] for o in priced_options])
+    uploaded_files = st.file_uploader("도면, 스케치, 현장 사진, 사업자등록증등 첨부", accept_multiple_files=True, key=f"file_upl_{rk}")
+    st.markdown(f"<div class='summary-box'><div class='summary-price'>{utils.format_price(total, product_specs)}</div></div>", unsafe_allow_html=True)
+
+    if st.button("🛒 장바구니에 담기", type="primary", use_container_width=True):
+        import time
+        bid, files_data = str(time.time()), []
+        if uploaded_files:
+            for f in uploaded_files: files_data.append({"name": f.name, "type": f.type, "bytes": f.getvalue()})
+        opts_txt = "<br>".join([o['display_name'] for o in zero_options])
+        
+        st.session_state.cart.append({"bid": bid, "is_opt": False, "p": st.session_state.selected_cat, "s": product_specs, "o": opts_txt, "q": quantity, "u": base_price, "t": base_price * quantity, "files": files_data, "img_paths": valid_paths})
+        for o in priced_options:
+            st.session_state.cart.append({"bid": bid, "is_opt": True, "p": o.get('group', '옵션'), "o": o['cart_name'], "q": o['current_cart_q'], "u": o['unit_price'], "t": o['total_per_main'], "q_per": o['qty_per_main']})
+        st.session_state.selected_cat = None
+        st.rerun()
+
+cart_trs, total_sum, all_ext_img_paths = "", 0, []
+if st.session_state.cart:
+    st.markdown("<h2>🛒 장바구니 요약</h2>", unsafe_allow_html=True)
+    for item in st.session_state.cart:
+        if not item.get('is_opt'):
+            st.markdown("<div class='cart-card'>", unsafe_allow_html=True)
+            c1, c2 = st.columns([9, 1])
+            c1.markdown(f"<div class='cart-header'>{item['p']}</div>", unsafe_allow_html=True)
+            if c2.button("삭제", key=f"del_{item['bid']}"):
+                st.session_state.cart = [x for x in st.session_state.cart if x['bid'] != item['bid']]
+                st.rerun()
+            
+            if item['o']: st.markdown(f"**기본사항:** {item['o']}", unsafe_allow_html=True)
+            if item.get('files'): st.markdown(f"<div style='font-size:13px; color:#17a2b8; margin-top:5px;'>📎 첨부파일: {', '.join([f['name'] for f in item['files']])}</div>", unsafe_allow_html=True)
+            st.markdown("<hr style='margin: 10px 0px;'>", unsafe_allow_html=True)
+            
+            mc1, mc2, mc3, mc4 = st.columns([4.5, 2, 2.5, 1])
+            new_q = mc4.number_input("수량", min_value=0, value=item['q'], key=f"cq_{item['bid']}", label_visibility="collapsed")
+            ui_img_html = ""
+            if item.get('img_paths'):
+                import utils
+                img_tags = [f"<img src='data:image/jpeg;base64,{utils.get_image_base64(p)}' height='50' style='border-radius:4px; border:1px solid #ddd; margin-right:5px; margin-top:5px;'>" for p in item['img_paths'] if utils.get_image_base64(p)]
+                ui_img_html = f"<div>{''.join(img_tags)}</div>"
+                for p in item['img_paths']:
+                    if p not in all_ext_img_paths: all_ext_img_paths.append(p)
+                
+            mc1.markdown(f"<div style='padding-top:8px;'><b>[메인]</b> {item['s']}{ui_img_html}</div>", unsafe_allow_html=True)
+            mc2.markdown(f"<div style='padding-top:8px; color:#555;'>단가: <b>{utils.format_price(item['u'], item['s'])}</b></div>", unsafe_allow_html=True)
+            
+            if new_q == 0: 
+                st.session_state.cart = [x for x in st.session_state.cart if x['bid'] != item['bid']]
+                st.rerun()
+            elif new_q != item['q']:
+                item['q'], item['t'] = new_q, item['u'] * new_q
+                for sub in st.session_state.cart:
+                    if sub.get('is_opt') and sub['bid'] == item['bid']:
+                        sub['q'] = int(sub.get('q_per', 1) * new_q)
+                        sub['t'] = sub['u'] * sub['q']
+                st.rerun()
+            
+            mc3.markdown(f"<div style='padding-top:8px; color:#d9534f; font-weight:bold;'>금액: {utils.format_price(item['t'], item['s'])}</div>", unsafe_allow_html=True)    
+            total_sum += item['t']
+            cart_trs += f"<tr><td>메인 제품</td><td>[{item['p']}] {item['s']}</td><td>{item['q']}</td><td style='text-align:right;'>{utils.format_price(item['u'], item['s'])}</td><td style='text-align:right;'>{utils.format_price(item['t'], item['s'])}</td></tr>"
+            
+            for sub in [x for x in st.session_state.cart if x.get('is_opt') and x['bid'] == item['bid']]:
+                sc1, sc2, sc3, sc4 = st.columns([4.5, 2, 2.5, 1])
+                nsq = sc4.number_input("수량", min_value=0, value=sub['q'], key=f"cq_opt_{sub['bid']}_{sub['o']}", label_visibility="collapsed")
+                sc1.markdown(f"<div style='padding-top:8px;'>└ {sub['o']}</div>", unsafe_allow_html=True)
+                sc2.markdown(f"<div style='padding-top:8px; color:#555;'>단가: <b>{utils.format_price(sub['u'], sub['o'])}</b></div>", unsafe_allow_html=True)
+                if nsq != sub['q']:
+                    sub['q'], sub['t'] = nsq, sub['u'] * nsq
+                    if item['q'] > 0: sub['q_per'] = nsq / item['q']
+                    st.rerun()
+                sc3.markdown(f"<div style='padding-top:8px; color:#d9534f; font-weight:bold;'>금액: {utils.format_price(sub['t'], sub['o'])}</div>", unsafe_allow_html=True)
+                total_sum += sub['t']
+                if sub['q'] > 0: cart_trs += f"<tr style='color:#666; font-size:13px;'><td>└ 추가/옵션</td><td>[{sub['p']}] {sub['o']}</td><td>{sub['q']}</td><td style='text-align:right;'>{utils.format_price(sub['u'], sub['o'])}</td><td style='text-align:right;'>{utils.format_price(sub['t'], sub['o'])}</td></tr>"
+            st.markdown("</div>", unsafe_allow_html=True)
+
+    st.markdown(f"<div style='background-color:#333; color:white; border-radius:8px; padding:20px; text-align:center; margin-bottom:20px;'><div style='font-size:32px; font-weight:900;'>총 합계: {int(total_sum):,}원</div></div>", unsafe_allow_html=True)
+    
+    if all_ext_img_paths:
+        import utils
+        img_tags = [f"<img src='data:image/jpeg;base64,{utils.get_image_base64(p)}' style='max-width: 250px; max-height: 250px; object-fit: contain; margin: 10px; border: 1px solid #ccc; padding: 5px; background: white; border-radius: 8px;'>" for p in all_ext_img_paths if utils.get_image_base64(p)]
+        if img_tags: 
+            st.markdown(f"<div style='margin-top: 40px;'><h3 style='color: #2e6c80; border-bottom: 2px solid #2e6c80; padding-bottom: 8px;'>📷 선택 제품 및 옵션 참고 이미지</h3><div>{''.join(img_tags)}</div></div>", unsafe_allow_html=True)
+
+    # 요구사항 3: 메일 주소 및 상세 정보는 여기서(장바구니) 받도록 변경
+    st.markdown("<h2>✉️ 주문 접수 및 견적서 메일 받기</h2>", unsafe_allow_html=True)
+    st.session_state.c_name = st.text_input("업체명 (상호)", value=st.session_state.c_name)
+    st.session_state.p_phone = st.text_input("연락처 (숫자만 입력)", value=st.session_state.p_phone)
+    st.session_state.p_name = st.text_input("담당자 성함 (선택사항)", value=st.session_state.get("p_name", ""))
+    st.session_state.c_email = st.text_input("견적서 받을 이메일 주소 (선택사항)", value=st.session_state.get("c_email", ""), placeholder="견적서를 내 메일로 받고 싶을 때만 입력하세요")
+    st.session_state.d_addr = st.text_input("배송지 주소 (선택사항)", value=st.session_state.get("d_addr", ""))
+    
+    d_method = st.radio("배송 방법", ["택배", "경동화물", "용달", "방문"], horizontal=True)
+    if d_method == "경동화물": st.session_state.d_branch = st.text_input("경동화물 지점명 (입력 후 엔터)", value=st.session_state.d_branch)
+    d_pay = st.radio("배송비 결제", ["선불", "착불"], horizontal=True)
+    st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
+    
+    btn_c1, btn_c2, btn_c3 = st.columns([1.2, 1, 1])
+    with btn_c1: submit_btn = st.button("🚀 주문 접수 메일 보내기", type="primary", use_container_width=True)
+    with btn_c2: send_quote_btn = st.button("📧 내 메일로 견적서만 받기", use_container_width=True)
+    with btn_c3:
+        prt = f"""
+        <button onclick='openP()' style='width:100%;height:42px;background:#2e6c80;color:white;border:none;border-radius:8px;cursor:pointer;'>🖨️ 견적서 인쇄 / PDF 저장</button>
+        <script>
+        function openP(){{
+            var win=window.open('','_blank');
+            var html = `<html><head><title>견적서</title>
+            <style>
+                body{{font-family:"Malgun Gothic",sans-serif;padding:20px;}}
+                table{{width:100%;border-collapse:collapse;margin-bottom:20px;}}
+                th,td{{border:1px solid #000;padding:8px;text-align:center; white-space: nowrap;}}
+                th{{background:#f2f2f2;}}
+            </style></head><body>
+            <h1>견 적 서</h1>
+            <p style="text-align:right;">발행일: {pd.Timestamp.now().strftime('%Y-%m-%d')}<br>공급자: 한국시스템폴</p>
+            <table><thead><tr><th>구분</th><th>제품 및 옵션명</th><th>수량</th><th>단가</th><th>합계</th></tr></thead>
+            <tbody>{cart_trs}</tbody>
+            <tr style="font-weight:bold;"><td colspan="4">최종 합계 금액 (VAT 별도)</td><td style="text-align:right;">{int(total_sum):,}원</td></tr>
+            </table>
+            <div style="margin-top:20px; font-size:14px;">
+                ※ 주문제작건은 별도 단가가 적용되어 청구됩니다.<br>
+                ※ 위 내용은 담당자와 통화 후 변동될 수 있습니다.<br>
+                <b>담당자 : 이사 이 현 욱 (010-3304-2221)</b>
+            </div>
+            <div style="text-align:center; margin-top:30px;"><button onclick="window.print()">인쇄 / PDF저장</button></div>
+            </body></html>`;
+            win.document.write(html);
+            win.document.close();
+        }}
+        </script>
+        """
+        import streamlit.components.v1 as components
+        components.html(prt, height=45)
+
+    if submit_btn or send_quote_btn:
+        if not st.session_state.c_name or not st.session_state.p_phone:
+            st.warning("⚠️ 상호명과 연락처는 필수 입력 사항입니다.")
+        elif send_quote_btn and not st.session_state.c_email:
+            st.warning("⚠️ 내 메일로 견적서를 받으시려면 '이메일 주소'를 입력해 주세요.")
         else:
-            st.error("비밀번호가 일치하지 않습니다.")
+            is_order = submit_btn
+            name_disp = st.session_state.p_name if st.session_state.p_name else "담당자미상"
+            
+            if is_order:
+                subject = f"🔔 [주문] {st.session_state.c_name} ({name_disp})"
+                to_emails = f"kspole@naver.com"
+                if st.session_state.c_email:
+                    to_emails += f", {st.session_state.c_email}"
+            else:
+                subject = f"📄 [견적서 보관용] 한국시스템폴 단가표 내역 ({st.session_state.c_name})"
+                to_emails = st.session_state.c_email
+            
+            branch_info = f" (지점명: {st.session_state.d_branch})" if d_method == "경동화물" else ""
+            
+            html_body = f"""
+            <html>
+            <head>
+                <style>
+                    body {{ font-family: 'Malgun Gothic', sans-serif; line-height: 1.6; color: #333; }}
+                    table {{ border-collapse: collapse; width: 100%; margin-top: 15px; margin-bottom: 20px; font-size: 14px; }}
+                    th, td {{ border: 1px solid #ddd; padding: 10px; text-align: left; }}
+                    th {{ background-color: #f4f4f4; color: #333; }}
+                    h3 {{ color: #2e6c80; border-bottom: 1px solid #eee; padding-bottom: 5px; }}
+                    .total-price {{ color: #d9534f; font-size: 22px; font-weight: bold; margin-top: 20px; }}
+                </style>
+            </head>
+            <body>
+                <h2 style='color:#2e6c80;'>📦 주문/견적 상세 내역</h2>
+                
+                <h3>👤 고객 및 배송 정보</h3>
+                <ul>
+                    <li><b>업체명(상호):</b> {st.session_state.c_name}</li>
+                    <li><b>담당자명:</b> {name_disp}</li>
+                    <li><b>연락처:</b> {st.session_state.p_phone}</li>
+                    <li><b>이메일:</b> {st.session_state.c_email}</li>
+                    <li><b>배송지 주소:</b> {st.session_state.d_addr}</li>
+                    <li><b>배송 방법:</b> {d_method}{branch_info} ({d_pay})</li>
+                </ul>
+
+                <h3>🛒 상세 주문 내역</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>구분</th>
+                            <th>제품 및 옵션명</th>
+                            <th>수량</th>
+                            <th>단가</th>
+                            <th>합계</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {cart_trs}
+                    </tbody>
+                </table>
+                
+                <div class="total-price">최종 합계: {int(total_sum):,}원 (VAT 별도)</div>
+            </body>
+            </html>
+            """
+            
+            try:
+                import smtplib
+                from email.message import EmailMessage
+                EMAIL_SENDER, EMAIL_PASSWORD = "leehw05221092@gmail.com", "tcpnhcswwaogeofp"
+                msg = EmailMessage()
+                msg['Subject'] = subject
+                msg['From'] = EMAIL_SENDER
+                msg['To'] = to_emails
+                msg.add_alternative(html_body, subtype='html')
+                
+                srv = smtplib.SMTP('smtp.gmail.com', 587)
+                srv.starttls()
+                srv.login(EMAIL_SENDER, EMAIL_PASSWORD)
+                srv.send_message(msg)
+                srv.quit()
+                if is_order: st.session_state.cart = []
+                st.session_state.mail_sent = True
+                st.rerun()
+            except Exception as e: 
+                st.error(f"❌ 발송 실패: {e}")
