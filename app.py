@@ -100,7 +100,8 @@ document.addEventListener("DOMContentLoaded", function() {
 st.markdown("""
 <style>
     .block-container { padding-top: 2.5rem !important; padding-bottom: 1.5rem !important; }
-    h1 { text-align: center; line-height: 1.3; font-size: 32px !important; color: #333; margin-top: 10px !important; margin-bottom: 25px !important; letter-spacing: -1px; }
+    /* 타이틀 가운데 정렬 강제 지정 */
+    h1 { text-align: center !important; line-height: 1.3; font-size: 32px !important; color: #333; margin-top: 10px !important; margin-bottom: 25px !important; letter-spacing: -1px; }
     h2 { font-size: 24px !important; border-bottom: 2px solid #2e6c80; padding-bottom: 8px; margin-top: 15px !important; margin-bottom: 15px !important; color: #2e6c80; }
     div[data-testid="stSelectbox"] label p, div[data-testid="stNumberInput"] label p, div[data-testid="stTextInput"] label p, div[data-testid="stRadio"] label p { 
         font-size: 15px !important; font-weight: bold !important; color: #333; margin-bottom: 2px !important; 
@@ -145,11 +146,10 @@ rk = st.session_state.rk_main
 if not st.session_state.logged_in:
     st.markdown("<div style='max-width: 600px; margin: 40px auto; text-align: center;'>", unsafe_allow_html=True)
     
-    # 요구사항 1: 메인화면 두 줄 타이틀 적용
-    st.markdown("<h1 style='color: #2e6c80; margin-bottom: 30px; font-weight: 900;'>한국시스템폴<br>제품 단가표</h1>", unsafe_allow_html=True)
+    # 수정사항 2: 완벽한 가운데 정렬 적용
+    st.markdown("<h1 style='color: #2e6c80; margin-bottom: 30px; font-weight: 900; text-align: center;'>한국시스템폴<br>제품 단가표</h1>", unsafe_allow_html=True)
     
     with st.form("login_form"):
-        # 요구사항 3: 메일, 이름 삭제 -> 업체명과 연락처 2가지만 입력
         c_name = st.text_input("업체명 (상호) *", placeholder="예: 한국시스템폴 (입력 후 엔터)")
         p_phone_str = st.text_input("연락처 *", placeholder="연락처 숫자만 입력 (정확하게 입력, 입력 후 엔터)")
         
@@ -164,22 +164,11 @@ if not st.session_state.logged_in:
                 st.warning("⚠️ 연락처를 정확하게 입력해 주세요. (9자리 이상)")
             else:
                 st.session_state.update({"c_name":c_name, "p_phone":p_phone, "logged_in":True, "is_admin": False})
-                now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                try:
-                    # 로그 기록 저장
-                    log_data = pd.DataFrame([{"접속일시": now, "업체명": c_name, "연락처": p_phone}])
-                    if not os.path.exists("access_log.csv"): 
-                        log_data.to_csv("access_log.csv", index=False, encoding='utf-8-sig')
-                    else: 
-                        log_data.to_csv("access_log.csv", mode='a', header=False, index=False, encoding='utf-8-sig')
-                except: 
-                    pass 
                 st.rerun()
                 
     st.markdown("</div>", unsafe_allow_html=True)
     st.markdown("<div style='margin-top: 30px;'></div>", unsafe_allow_html=True)
     
-    # 요구사항 2 & 4: 관리자 접속 유지 및 비밀번호 locker1092*** 유지
     with st.expander("🛠️ 본사 직원 / 관리자 전용 바로 접속"):
         def do_admin_login():
             pw = st.session_state.get('pw_bypass', '')
@@ -202,23 +191,23 @@ if not st.session_state.logged_in:
 # -----------------------------------------------------------------------------
 # 3. 메인 대시보드 (단가표 & 관리자 로그 확인)
 # -----------------------------------------------------------------------------
+st.markdown("<div style='text-align: center;'>", unsafe_allow_html=True)
 if st.session_state.is_admin:
-    # 요구사항 4: 관리자 로그인 시 단가표와 고객 로그를 한 화면에서 바로 확인
-    st.markdown("<h1>한국시스템폴<br>제품 단가표 <span style='font-size:18px; color:#d9534f; vertical-align:middle;'>(관리자 모드)</span></h1>", unsafe_allow_html=True)
-    
-    with st.expander("👑 고객 접속 로그 확인 (접속시간 / 업체명 / 연락처)"):
+    st.markdown("<h1 style='text-align: center;'>한국시스템폴<br>제품 단가표 <span style='font-size:18px; color:#d9534f; vertical-align:middle;'>(관리자 모드)</span></h1>", unsafe_allow_html=True)
+    with st.expander("👑 고객 장바구니 로그 확인 (언제, 누가, 무엇을 담았는지)"):
         if os.path.exists("access_log.csv"):
             try:
                 df_log = pd.read_csv("access_log.csv")
-                st.dataframe(df_log.sort_values(by="접속일시", ascending=False), use_container_width=True)
+                st.dataframe(df_log.sort_values(by="시간", ascending=False), use_container_width=True)
                 csv = df_log.to_csv(index=False, encoding='utf-8-sig').encode('utf-8-sig')
-                st.download_button(label="📥 접속 명단 엑셀 다운로드", data=csv, file_name='고객접속명단.csv', mime='text/csv')
+                st.download_button(label="📥 접속 명단 엑셀 다운로드", data=csv, file_name='고객장바구니이력.csv', mime='text/csv')
             except Exception: 
                 st.error("기록을 불러올 수 없습니다.")
         else: 
-            st.info("아직 접속한 고객이 없습니다.")
+            st.info("아직 장바구니에 제품을 담은 이력이 없습니다.")
 else:
-    st.markdown("<h1>한국시스템폴<br>제품 단가표</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center;'>한국시스템폴<br>제품 단가표</h1>", unsafe_allow_html=True)
+st.markdown("</div>", unsafe_allow_html=True)
 
 is_main_ready = False
 base_price = 0
@@ -305,6 +294,22 @@ if is_main_ready:
             for f in uploaded_files: files_data.append({"name": f.name, "type": f.type, "bytes": f.getvalue()})
         opts_txt = "<br>".join([o['display_name'] for o in zero_options])
         
+        # 수정사항 3: 장바구니에 담을 때 나열식으로 로그 파일에 저장
+        item_summary = f"[{st.session_state.selected_cat}] {product_specs} ({quantity}개)"
+        opt_str = ", ".join([f"{o['display_name']}({o['current_cart_q']}개)" for o in priced_options if o['current_cart_q'] > 0])
+        if opt_str:
+            item_summary += f" / 옵션: {opt_str}"
+            
+        now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        log_data = pd.DataFrame([{"시간": now, "업체명": st.session_state.c_name, "연락처": st.session_state.p_phone, "담은 제품": item_summary}])
+        try:
+            if not os.path.exists("access_log.csv"): 
+                log_data.to_csv("access_log.csv", index=False, encoding='utf-8-sig')
+            else: 
+                log_data.to_csv("access_log.csv", mode='a', header=False, index=False, encoding='utf-8-sig')
+        except: 
+            pass
+        
         st.session_state.cart.append({"bid": bid, "is_opt": False, "p": st.session_state.selected_cat, "s": product_specs, "o": opts_txt, "q": quantity, "u": base_price, "t": base_price * quantity, "files": files_data, "img_paths": valid_paths})
         for o in priced_options:
             st.session_state.cart.append({"bid": bid, "is_opt": True, "p": o.get('group', '옵션'), "o": o['cart_name'], "q": o['current_cart_q'], "u": o['unit_price'], "t": o['total_per_main'], "q_per": o['qty_per_main']})
@@ -377,19 +382,39 @@ if st.session_state.cart:
         if img_tags: 
             st.markdown(f"<div style='margin-top: 40px;'><h3 style='color: #2e6c80; border-bottom: 2px solid #2e6c80; padding-bottom: 8px;'>📷 선택 제품 및 옵션 참고 이미지</h3><div>{''.join(img_tags)}</div></div>", unsafe_allow_html=True)
 
-    # 요구사항 3: 메일 주소 및 상세 정보는 여기서(장바구니) 받도록 변경
     st.markdown("<h2>✉️ 주문 접수 및 견적서 메일 받기</h2>", unsafe_allow_html=True)
     st.session_state.c_name = st.text_input("업체명 (상호)", value=st.session_state.c_name)
     st.session_state.p_phone = st.text_input("연락처 (숫자만 입력)", value=st.session_state.p_phone)
     st.session_state.p_name = st.text_input("담당자 성함 (선택사항)", value=st.session_state.get("p_name", ""))
-    st.session_state.c_email = st.text_input("견적서 받을 이메일 주소 (선택사항)", value=st.session_state.get("c_email", ""), placeholder="견적서를 내 메일로 받고 싶을 때만 입력하세요")
     st.session_state.d_addr = st.text_input("배송지 주소 (선택사항)", value=st.session_state.get("d_addr", ""))
     
     d_method = st.radio("배송 방법", ["택배", "경동화물", "용달", "방문"], horizontal=True)
     if d_method == "경동화물": st.session_state.d_branch = st.text_input("경동화물 지점명 (입력 후 엔터)", value=st.session_state.d_branch)
     d_pay = st.radio("배송비 결제", ["선불", "착불"], horizontal=True)
-    st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
     
+    # 수정사항 1: 견적서 받을 이메일 주소를 도메인 선택창(네이버, 다음 등)으로 깔끔하게 구현
+    st.markdown("<hr style='margin:20px 0;'>", unsafe_allow_html=True)
+    st.markdown("<p style='font-size:16px; font-weight:bold; color:#2e6c80; margin-bottom:5px;'>📧 견적서 수신용 이메일 주소 (내 메일로 받기 클릭 시 필수)</p>", unsafe_allow_html=True)
+    
+    email_col1, email_col2 = st.columns(2)
+    with email_col1:
+        email_id = st.text_input("이메일 아이디", placeholder="예: kspole", key="email_id", label_visibility="collapsed")
+    with email_col2:
+        email_domain = st.selectbox("도메인", ["선택/직접입력", "@naver.com", "@daum.net", "@hanmail.net", "@gmail.com"], key="email_domain", label_visibility="collapsed")
+    
+    custom_domain = ""
+    if email_domain == "선택/직접입력":
+        custom_domain = st.text_input("도메인 직접입력", placeholder="예: @kspole.com", key="custom_domain", label_visibility="collapsed")
+        
+    final_email = ""
+    if email_id:
+        domain_part = custom_domain.strip() if email_domain == "선택/직접입력" else email_domain
+        final_email = f"{email_id.strip()}{domain_part}"
+        st.session_state.c_email = final_email
+    else:
+        st.session_state.c_email = ""
+
+    st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
     btn_c1, btn_c2, btn_c3 = st.columns([1.2, 1, 1])
     with btn_c1: submit_btn = st.button("🚀 주문 접수 메일 보내기", type="primary", use_container_width=True)
     with btn_c2: send_quote_btn = st.button("📧 내 메일로 견적서만 받기", use_container_width=True)
@@ -431,7 +456,7 @@ if st.session_state.cart:
         if not st.session_state.c_name or not st.session_state.p_phone:
             st.warning("⚠️ 상호명과 연락처는 필수 입력 사항입니다.")
         elif send_quote_btn and not st.session_state.c_email:
-            st.warning("⚠️ 내 메일로 견적서를 받으시려면 '이메일 주소'를 입력해 주세요.")
+            st.warning("⚠️ 내 메일로 견적서를 받으시려면 '이메일 주소'를 완벽하게 입력해 주세요.")
         else:
             is_order = submit_btn
             name_disp = st.session_state.p_name if st.session_state.p_name else "담당자미상"
@@ -496,7 +521,11 @@ if st.session_state.cart:
             try:
                 import smtplib
                 from email.message import EmailMessage
-                EMAIL_SENDER, EMAIL_PASSWORD = "leehw05221092@gmail.com", "tcpnhcswwaogeofp"
+                
+                # ❗주의❗ 여기서 앱 비밀번호를 새로 발급받은 16자리로 변경해 주셔야 에러가 해결됩니다.
+                EMAIL_SENDER = "leehw05221092@gmail.com"
+                EMAIL_PASSWORD = "tcpnhcswwaogeofp" 
+                
                 msg = EmailMessage()
                 msg['Subject'] = subject
                 msg['From'] = EMAIL_SENDER
@@ -510,6 +539,7 @@ if st.session_state.cart:
                 srv.quit()
                 if is_order: st.session_state.cart = []
                 st.session_state.mail_sent = True
+                st.success("✅ 메일 발송이 성공적으로 완료되었습니다!")
                 st.rerun()
             except Exception as e: 
-                st.error(f"❌ 발송 실패: {e}")
+                st.error(f"❌ 발송 실패: {e} (구글 앱 비밀번호를 새로 발급받아 코드에 적용해 주세요)")
