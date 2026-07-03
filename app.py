@@ -24,6 +24,9 @@ import prod_cctv_panel
 import prod_enclosure
 import prod_others
 
+# 3번 수정사항: 앱 버전 관리 변수 추가
+APP_VERSION = "v1.2.0"
+
 # 파비콘 및 기본 설정
 st.set_page_config(page_title="한국시스템폴 디지털 단가표", layout="wide", page_icon="🔵")
 
@@ -31,6 +34,25 @@ components.html("""
 <script>
 document.addEventListener("DOMContentLoaded", function() {
     const parentDoc = window.parent.document;
+    
+    // 2번 수정사항: 일반 파비콘 및 모바일 홈 화면 설치용 아이콘(apple-touch-icon) 강제 주입
+    const svgIcon = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23004b9b" rx="20"/><text x="50%25" y="55%25" dominant-baseline="middle" text-anchor="middle" font-size="38" font-family="Arial" font-weight="bold" fill="white">KSP</text></svg>';
+    
+    let link = parentDoc.querySelector("link[rel~='icon']");
+    if (!link) {
+        link = parentDoc.createElement('link');
+        link.rel = 'icon';
+        parentDoc.head.appendChild(link);
+    }
+    link.href = svgIcon;
+
+    let appleLink = parentDoc.querySelector("link[rel='apple-touch-icon']");
+    if (!appleLink) {
+        appleLink = parentDoc.createElement('link');
+        appleLink.rel = 'apple-touch-icon';
+        parentDoc.head.appendChild(appleLink);
+    }
+    appleLink.href = svgIcon;
     
     // 파일 업로더 영어 텍스트 강제 한글화
     function translateUploader() {
@@ -51,7 +73,6 @@ document.addEventListener("DOMContentLoaded", function() {
 </script>
 """, height=0, width=0)
 
-# 2번 수정사항: 모바일 당겨서 새로고침(튕김) 및 스와이프 뒤로가기 완벽 차단
 st.markdown("""
 <style>
     /* 스마트폰 제스처(새로고침, 뒤로가기) 강제 차단 */
@@ -59,7 +80,7 @@ st.markdown("""
         overscroll-behavior: none !important;
         overscroll-behavior-y: none !important;
         overscroll-behavior-x: none !important;
-        touch-action: pan-y !important; /* 위아래 스크롤만 허용 */
+        touch-action: pan-y !important; 
     }
     
     .block-container { padding-top: 1rem !important; padding-bottom: 1.5rem !important; }
@@ -110,9 +131,11 @@ rk = st.session_state.rk_main
 # 2. 로그인 폼 (일반 고객 및 톱니바퀴)
 # -----------------------------------------------------------------------------
 if not st.session_state.logged_in:
-    c1, c2, c3 = st.columns([1, 8, 1])
+    # 3번 수정사항: 버전 정보와 설정 버튼 우측 상단 나란히 배치
+    c1, c2, c3 = st.columns([2.5, 5, 2.5])
     with c3:
-        if st.button("⚙️", help="관리자 설정"):
+        st.markdown(f"<div style='text-align: right; font-size: 13px; color: #888; font-weight: bold; margin-bottom: 5px;'>{APP_VERSION}</div>", unsafe_allow_html=True)
+        if st.button("⚙️ 설정", use_container_width=True):
             st.session_state.show_admin = not st.session_state.get('show_admin', False)
             st.rerun()
             
@@ -121,9 +144,11 @@ if not st.session_state.logged_in:
 
     if st.session_state.get('show_admin', False):
         st.markdown("<div style='background-color:#f1f5f9; padding:15px; border-radius:10px; margin-bottom:20px; text-align:center;'>", unsafe_allow_html=True)
-        admin_pw = st.text_input("본사 직원 비밀번호", type="password")
+        # 1번 수정사항: 비밀번호 입력란 type="password" 제거로 텍스트 표시
+        admin_pw = st.text_input("본사 직원 비밀번호", placeholder="비밀번호를 입력하세요")
         if st.button("관리자 접속", type="primary"):
-            if admin_pw == "locker1092***":
+            # 1번 수정사항: .lower() 적용으로 대소문자 무시 (Locker1092*** 도 가능)
+            if admin_pw.lower() == "locker1092***":
                 st.session_state.update({"c_name":"한국시스템폴", "p_phone":"010-3304-2221", "logged_in":True, "is_admin": True})
                 st.rerun()
             else:
@@ -154,6 +179,7 @@ logout_col1, logout_col2 = st.columns([7, 3])
 with logout_col1:
     st.markdown(f"<div style='font-size:14px; font-weight:bold; color:#004b9b; padding-top:10px;'>🟢 접속중: {st.session_state.c_name}</div>", unsafe_allow_html=True)
 with logout_col2:
+    st.markdown(f"<div style='text-align: right; font-size: 12px; color: #888; font-weight: bold;'>{APP_VERSION}</div>", unsafe_allow_html=True)
     if st.button("로그아웃", use_container_width=True):
         st.session_state.logged_in = False
         st.session_state.is_admin = False
@@ -166,14 +192,11 @@ st.markdown("<div style='text-align: center;'>", unsafe_allow_html=True)
 if st.session_state.is_admin:
     st.markdown("<h1 style='color: #2e6c80;'>한국시스템폴<br>제품 단가표 <span style='font-size:18px; color:#d9534f; vertical-align:middle;'>(관리자)</span></h1>", unsafe_allow_html=True)
     with st.expander("👑 고객 접속 및 장바구니 로그 확인"):
-        # 1번 수정사항: on_bad_lines='skip'을 추가하여 과거 잘못된 형식의 데이터를 무시하고 정상 작동하게 함
         if os.path.exists("access_log.csv"):
             try:
-                # pandas 1.3.0 이상에서는 on_bad_lines='skip' 사용
                 try:
                     df_log = pd.read_csv("access_log.csv", on_bad_lines='skip')
                 except TypeError:
-                    # 구버전 pandas 호환용
                     df_log = pd.read_csv("access_log.csv", error_bad_lines=False)
                 
                 if "시간" in df_log.columns:
