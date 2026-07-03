@@ -91,6 +91,11 @@ st.markdown("""
     .cart-card { background-color: #fff; border: 1px solid #e0e0e0; border-radius: 12px; padding: 16px; margin-bottom: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.04); position: relative; }
     .summary-box { background-color: #fff; border: 2px solid #2e6c80; border-radius: 12px; padding: 20px; margin-top: 15px; margin-bottom: 15px; text-align: center; box-shadow: 0 4px 10px rgba(46,108,128,0.15); }
     .summary-price { font-size: 32px; font-weight: 900; color: #e53935; letter-spacing: -1px; }
+
+    /* 4. 스트림릿 하단 로고(워터마크) 및 상단 배포 버튼 숨기기 */
+    footer {visibility: hidden; display: none;}
+    header {visibility: hidden; display: none;}
+    .stDeployButton {display: none;}
 </style>
 """, unsafe_allow_html=True)
 
@@ -106,6 +111,9 @@ if 'is_admin' not in st.session_state: st.session_state.is_admin = False
 if 'cart' not in st.session_state: st.session_state.cart = []
 if 'selected_cat' not in st.session_state: st.session_state.selected_cat = None
 if 'rk_main' not in st.session_state: st.session_state.rk_main = 0       
+# ❗ 에러 해결을 위해 추가된 부분 ❗
+if 'rk_lvl1' not in st.session_state: st.session_state.rk_lvl1 = 0       
+if 'rk_lvl2' not in st.session_state: st.session_state.rk_lvl2 = 0       
 
 for field in ['c_name', 'p_name', 'p_phone', 'c_email', 'd_addr', 'd_branch']:
     if field not in st.session_state: st.session_state[field] = ""
@@ -355,7 +363,6 @@ if st.session_state.cart:
     else:
         st.session_state.c_email = ""
 
-    # 구글 웹 폰트를 삽입하여 모바일 인쇄/메일 글씨 깨짐 완벽 방지
     html_template = f"""
     <html>
     <head>
@@ -418,7 +425,6 @@ if st.session_state.cart:
         <script>
         function openP(){{
             var html = `{html_template}`;
-            // 인쇄용 HTML에서는 실제 고객 데이터로 치환
             html = html.replace('<span id="val_cname"></span>', '{st.session_state.c_name}');
             html = html.replace('<span id="val_pname"></span>', '{st.session_state.get("p_name", "담당자미상")}');
             html = html.replace('<span id="val_phone"></span>', '{st.session_state.p_phone}');
@@ -433,7 +439,7 @@ if st.session_state.cart:
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
-                alert("모바일 기기에서는 글씨 깨짐 방지를 위해 견적서가 HTML 파일 형태로 다운로드 되었습니다. 파일 앱에서 열람해 주세요.");
+                alert("모바일에서는 파일 앱에 HTML 문서로 안전하게 다운로드되었습니다.");
             }} else {{
                 var win = window.open('','_blank');
                 win.document.write(html);
@@ -451,22 +457,20 @@ if st.session_state.cart:
         elif send_quote_btn and not st.session_state.c_email:
             st.warning("⚠️ 내 메일로 견적서를 받으시려면 '이메일 주소'를 입력해 주세요.")
         else:
-            # 요구사항: 나에게 보내기 vs 주문 보내기 데이터 분리
-            if submit_btn:  # 주문서 보내기 (고객 정보 기준)
+            if submit_btn:  
                 mail_cname = st.session_state.c_name
                 mail_pname = st.session_state.p_name if st.session_state.p_name else "담당자미상"
                 mail_phone = st.session_state.p_phone
                 subject = f"🔔 [주문] {mail_cname} ({mail_pname})"
                 to_emails = f"kspole@naver.com"
                 if st.session_state.c_email: to_emails += f",{st.session_state.c_email}"
-            else:  # 내 메일로 보내기 (요청하신 대로 고정 데이터 적용)
+            else:  
                 mail_cname = "한국시스템폴"
                 mail_pname = "이사 이현욱"
                 mail_phone = "010-3304-2221"
                 subject = f"📄 [견적서 보관용] 한국시스템폴 제품 단가표"
                 to_emails = st.session_state.c_email
             
-            # 이메일용 HTML 내용 치환
             email_html_body = html_template.replace('<span id="val_cname"></span>', mail_cname)
             email_html_body = email_html_body.replace('<span id="val_pname"></span>', mail_pname)
             email_html_body = email_html_body.replace('<span id="val_phone"></span>', mail_phone)
@@ -484,10 +488,8 @@ if st.session_state.cart:
                 recipient_list = [email.strip() for email in to_emails.split(",") if email.strip()]
                 msg['To'] = ", ".join(recipient_list)
                 
-                # 1. 본문에 예쁜 내용 추가
                 msg.add_alternative(email_html_body, subtype='html')
                 
-                # 2. 깨짐 없는 견적서 전자문서(HTML)를 첨부파일로 추가
                 attachment_data = email_html_body.encode('utf-8')
                 msg.add_attachment(attachment_data, maintype='text', subtype='html', filename="KSP_견적서.html")
                 
@@ -499,7 +501,7 @@ if st.session_state.cart:
                 
                 if submit_btn: st.session_state.cart = []
                 st.session_state.mail_sent = True
-                st.success("✅ 메일 발송이 성공적으로 완료되었습니다! (견적서 파일 첨부 완료)")
+                st.success("✅ 메일 발송이 완료되었습니다! (견적서 파일 첨부)")
                 st.rerun()
             except Exception as e: 
                 st.error(f"❌ 발송 실패: {e}")
