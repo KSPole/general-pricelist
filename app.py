@@ -51,12 +51,18 @@ document.addEventListener("DOMContentLoaded", function() {
 </script>
 """, height=0, width=0)
 
-# 4번 수정사항: 아래쪽 Hosted with Streamlit 등 불필요한 마크 완벽 제거
+# 2번 수정사항: 모바일 당겨서 새로고침(튕김) 및 스와이프 뒤로가기 완벽 차단
 st.markdown("""
 <style>
-    /* 위아래 여백 최소화 및 모바일 튕김 방지 */
+    /* 스마트폰 제스처(새로고침, 뒤로가기) 강제 차단 */
+    html, body, [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
+        overscroll-behavior: none !important;
+        overscroll-behavior-y: none !important;
+        overscroll-behavior-x: none !important;
+        touch-action: pan-y !important; /* 위아래 스크롤만 허용 */
+    }
+    
     .block-container { padding-top: 1rem !important; padding-bottom: 1.5rem !important; }
-    html, body, .stApp { overscroll-behavior-y: none !important; }
     
     /* 스트림릿 기본 UI 마크, 워터마크 완벽 숨김 */
     div[data-testid="InputInstructions"] { display: none !important; }
@@ -144,7 +150,6 @@ if not st.session_state.logged_in:
 # -----------------------------------------------------------------------------
 # 3. 메인 대시보드 (단가표 화면)
 # -----------------------------------------------------------------------------
-# 2번 수정사항: 로그아웃 버튼을 우측 상단에 명시적으로 추가하여 튕김 방지 체감 강화
 logout_col1, logout_col2 = st.columns([7, 3])
 with logout_col1:
     st.markdown(f"<div style='font-size:14px; font-weight:bold; color:#004b9b; padding-top:10px;'>🟢 접속중: {st.session_state.c_name}</div>", unsafe_allow_html=True)
@@ -161,11 +166,16 @@ st.markdown("<div style='text-align: center;'>", unsafe_allow_html=True)
 if st.session_state.is_admin:
     st.markdown("<h1 style='color: #2e6c80;'>한국시스템폴<br>제품 단가표 <span style='font-size:18px; color:#d9534f; vertical-align:middle;'>(관리자)</span></h1>", unsafe_allow_html=True)
     with st.expander("👑 고객 접속 및 장바구니 로그 확인"):
-        # 1번 수정사항: 예전 로그(접속일시)와 새 로그(시간) 모두 에러 없이 불러오도록 예외처리 강화
+        # 1번 수정사항: on_bad_lines='skip'을 추가하여 과거 잘못된 형식의 데이터를 무시하고 정상 작동하게 함
         if os.path.exists("access_log.csv"):
             try:
-                df_log = pd.read_csv("access_log.csv")
-                # 컬럼 중 '시간'이나 '접속일시'가 있으면 그것을 기준으로 정렬
+                # pandas 1.3.0 이상에서는 on_bad_lines='skip' 사용
+                try:
+                    df_log = pd.read_csv("access_log.csv", on_bad_lines='skip')
+                except TypeError:
+                    # 구버전 pandas 호환용
+                    df_log = pd.read_csv("access_log.csv", error_bad_lines=False)
+                
                 if "시간" in df_log.columns:
                     df_log = df_log.sort_values(by="시간", ascending=False)
                 elif "접속일시" in df_log.columns:
@@ -175,7 +185,7 @@ if st.session_state.is_admin:
                 csv = df_log.to_csv(index=False, encoding='utf-8-sig').encode('utf-8-sig')
                 st.download_button(label="📥 접속 명단 엑셀 다운로드", data=csv, file_name='고객장바구니이력.csv', mime='text/csv')
             except Exception as e: 
-                st.error(f"기록 정렬 중 문제가 발생했습니다. 원본 데이터를 확인하세요: {e}")
+                st.error(f"기록 정렬 중 문제가 발생했습니다: {e}")
         else: 
             st.info("아직 기록이 없습니다.")
 else:
@@ -363,7 +373,6 @@ if st.session_state.cart:
     else:
         st.session_state.c_email = ""
 
-    # 3번 수정사항: HTML 템플릿에서도 '담당자' 항목을 완벽히 삭제
     html_template = f"""
     <html>
     <head>
