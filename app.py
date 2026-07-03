@@ -1,5 +1,5 @@
 # =============================================================================
-# 📌 한국시스템폴 디지털 단가표 - 메인 대시보드 (모바일 완벽 최적화 버전)
+# 📌 한국시스템폴 디지털 단가표 - 메인 대시보드 (완벽 최적화 버전)
 # =============================================================================
 
 import os
@@ -24,28 +24,15 @@ import prod_cctv_panel
 import prod_enclosure
 import prod_others
 
-# 3번 수정사항: 파비콘이 절대 안 풀리도록 스트림릿 표준 🔵 아이콘 지정
+# 파비콘 및 기본 설정
 st.set_page_config(page_title="한국시스템폴 디지털 단가표", layout="wide", page_icon="🔵")
 
-# 👉 1번&2번 수정사항: 스크롤 먹통 현상 해결 및 뒤로가기 세션 유지 안전장치 JS
 components.html("""
 <script>
 document.addEventListener("DOMContentLoaded", function() {
     const parentDoc = window.parent.document;
     
-    // 파비콘 이중 주입 (웹브라우저 상단 아이콘 강제 적용)
-    let link = parentDoc.querySelector("link[rel~='icon']");
-    if (!link) {
-        link = parentDoc.createElement('link');
-        link.rel = 'icon';
-        parentDoc.head.appendChild(link);
-    }
-    link.href = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23004b9b" rx="20"/><text x="50%25" y="55%25" dominant-baseline="middle" text-anchor="middle" font-size="38" font-family="Arial" font-weight="bold" fill="white">KSP</text></svg>';
-
-    // 모바일 터치 스크롤이 자연스럽게 굴러가도록 개선 (먹통 증상 해결)
-    parentDoc.body.style.webkitOverflowScrolling = 'touch';
-    
-    // 파일 업로더 한글 변환
+    // 파일 업로더 영어 텍스트 강제 한글화
     function translateUploader() {
         const elements = parentDoc.querySelectorAll('span, div, small');
         elements.forEach(el => {
@@ -64,24 +51,22 @@ document.addEventListener("DOMContentLoaded", function() {
 </script>
 """, height=0, width=0)
 
+# 4번 수정사항: 아래쪽 Hosted with Streamlit 등 불필요한 마크 완벽 제거
 st.markdown("""
 <style>
-    /* 1번 & 4번 수정사항: 위아래 여백 최소화 및 모바일 전용 스크롤 잠금 우회 */
-    .block-container { padding-top: 0.5rem !important; padding-bottom: 1.5rem !important; }
+    /* 위아래 여백 최소화 및 모바일 튕김 방지 */
+    .block-container { padding-top: 1rem !important; padding-bottom: 1.5rem !important; }
+    html, body, .stApp { overscroll-behavior-y: none !important; }
     
-    /* 화면을 아래로 당겨도 상단 여백 튕김만 흡수하고 본문 스크롤은 정상 작동하게 함 */
-    html, body, .stApp { 
-        overscroll-behavior-y: contain !important; 
-        overflow-y: auto !important;
-    }
-    
-    /* 스트림릿 기본 UI 숨김 조치 */
+    /* 스트림릿 기본 UI 마크, 워터마크 완벽 숨김 */
     div[data-testid="InputInstructions"] { display: none !important; }
-    footer { visibility: hidden; display: none; }
-    header { visibility: hidden; display: none; }
-    .stDeployButton { display: none; }
+    #MainMenu {visibility: hidden !important;}
+    footer {visibility: hidden !important; display: none !important;}
+    header {visibility: hidden !important; display: none !important;}
+    .viewerBadge_container {display: none !important;} 
+    .stDeployButton {display: none !important;}
     
-    /* 타이틀 가운데 정렬 밀착 */
+    /* 타이틀 및 UI 디자인 */
     h1 { text-align: center !important; line-height: 1.2 !important; font-size: 28px !important; color: #333; margin-top: -10px !important; margin-bottom: 15px !important; font-weight: 900; }
     h2 { font-size: 22px !important; border-bottom: 2px solid #2e6c80; padding-bottom: 6px; margin-top: 10px !important; margin-bottom: 10px !important; color: #2e6c80; }
     
@@ -102,7 +87,6 @@ categories = list(products_df['카테고리'].dropna().unique())
 
 if "뷸렛카메라박스" in categories: categories[categories.index("뷸렛카메라박스")] = "뷸렛카메라박스 / 각도기"
 
-# 2번 수정사항: 브라우저가 강제로 초기화되어도 튕기지 않게 확실한 세션 잠금 적용
 if 'logged_in' not in st.session_state: st.session_state.logged_in = False
 if 'is_admin' not in st.session_state: st.session_state.is_admin = False
 if 'cart' not in st.session_state: st.session_state.cart = []
@@ -111,7 +95,7 @@ if 'rk_main' not in st.session_state: st.session_state.rk_main = 0
 if 'rk_lvl1' not in st.session_state: st.session_state.rk_lvl1 = 0       
 if 'rk_lvl2' not in st.session_state: st.session_state.rk_lvl2 = 0       
 
-for field in ['c_name', 'p_name', 'p_phone', 'c_email', 'd_addr', 'd_branch']:
+for field in ['c_name', 'p_phone', 'c_email', 'd_addr', 'd_branch']:
     if field not in st.session_state: st.session_state[field] = ""
 
 rk = st.session_state.rk_main
@@ -120,7 +104,6 @@ rk = st.session_state.rk_main
 # 2. 로그인 폼 (일반 고객 및 톱니바퀴)
 # -----------------------------------------------------------------------------
 if not st.session_state.logged_in:
-    # 톱니바퀴 우측 배치 여백 조절
     c1, c2, c3 = st.columns([1, 8, 1])
     with c3:
         if st.button("⚙️", help="관리자 설정"):
@@ -159,20 +142,42 @@ if not st.session_state.logged_in:
     st.stop()
 
 # -----------------------------------------------------------------------------
-# 3. 메인 대시보드
+# 3. 메인 대시보드 (단가표 화면)
 # -----------------------------------------------------------------------------
+# 2번 수정사항: 로그아웃 버튼을 우측 상단에 명시적으로 추가하여 튕김 방지 체감 강화
+logout_col1, logout_col2 = st.columns([7, 3])
+with logout_col1:
+    st.markdown(f"<div style='font-size:14px; font-weight:bold; color:#004b9b; padding-top:10px;'>🟢 접속중: {st.session_state.c_name}</div>", unsafe_allow_html=True)
+with logout_col2:
+    if st.button("로그아웃", use_container_width=True):
+        st.session_state.logged_in = False
+        st.session_state.is_admin = False
+        st.session_state.cart = []
+        st.rerun()
+
+st.markdown("<hr style='margin-top:5px; margin-bottom:20px;'>", unsafe_allow_html=True)
 st.markdown("<div style='text-align: center;'>", unsafe_allow_html=True)
+
 if st.session_state.is_admin:
     st.markdown("<h1 style='color: #2e6c80;'>한국시스템폴<br>제품 단가표 <span style='font-size:18px; color:#d9534f; vertical-align:middle;'>(관리자)</span></h1>", unsafe_allow_html=True)
-    with st.expander("👑 고객 장바구니 로그 확인"):
+    with st.expander("👑 고객 접속 및 장바구니 로그 확인"):
+        # 1번 수정사항: 예전 로그(접속일시)와 새 로그(시간) 모두 에러 없이 불러오도록 예외처리 강화
         if os.path.exists("access_log.csv"):
             try:
                 df_log = pd.read_csv("access_log.csv")
-                st.dataframe(df_log.sort_values(by="시간", ascending=False), use_container_width=True)
+                # 컬럼 중 '시간'이나 '접속일시'가 있으면 그것을 기준으로 정렬
+                if "시간" in df_log.columns:
+                    df_log = df_log.sort_values(by="시간", ascending=False)
+                elif "접속일시" in df_log.columns:
+                    df_log = df_log.sort_values(by="접속일시", ascending=False)
+                
+                st.dataframe(df_log, use_container_width=True)
                 csv = df_log.to_csv(index=False, encoding='utf-8-sig').encode('utf-8-sig')
                 st.download_button(label="📥 접속 명단 엑셀 다운로드", data=csv, file_name='고객장바구니이력.csv', mime='text/csv')
-            except: st.error("기록을 불러올 수 없습니다.")
-        else: st.info("기록이 없습니다.")
+            except Exception as e: 
+                st.error(f"기록 정렬 중 문제가 발생했습니다. 원본 데이터를 확인하세요: {e}")
+        else: 
+            st.info("아직 기록이 없습니다.")
 else:
     st.markdown("<h1 style='color: #2e6c80;'>한국시스템폴<br>제품 단가표</h1>", unsafe_allow_html=True)
 st.markdown("</div>", unsafe_allow_html=True)
@@ -331,7 +336,6 @@ if st.session_state.cart:
     st.markdown(f"<div style='background-color:#333; color:white; border-radius:8px; padding:20px; text-align:center; margin-bottom:20px;'><div style='font-size:32px; font-weight:900;'>총 합계: {int(total_sum):,}원</div></div>", unsafe_allow_html=True)
     
     st.markdown("<h2>✉️ 주문 접수 및 견적서 메일 받기</h2>", unsafe_allow_html=True)
-    st.session_state.p_name = st.text_input("담당자 성함 (선택사항)", value=st.session_state.get("p_name", ""))
     st.session_state.d_addr = st.text_input("배송지 주소 (선택사항)", value=st.session_state.get("d_addr", ""))
     
     d_method = st.radio("배송 방법", ["택배", "경동화물", "용달", "방문"], horizontal=True)
@@ -359,7 +363,7 @@ if st.session_state.cart:
     else:
         st.session_state.c_email = ""
 
-    # 모바일 깨짐 방지용 구글 웹폰트 완벽 주입
+    # 3번 수정사항: HTML 템플릿에서도 '담당자' 항목을 완벽히 삭제
     html_template = f"""
     <html>
     <head>
@@ -382,7 +386,6 @@ if st.session_state.cart:
         <h3>👤 고객 정보</h3>
         <ul>
             <li><b>업체명:</b> <span id="val_cname"></span></li>
-            <li><b>담당자:</b> <span id="val_pname"></span></li>
             <li><b>연락처:</b> <span id="val_phone"></span></li>
         </ul>
 
@@ -423,7 +426,6 @@ if st.session_state.cart:
         function openP(){{
             var html = `{html_template}`;
             html = html.replace('<span id="val_cname"></span>', '{st.session_state.c_name}');
-            html = html.replace('<span id="val_pname"></span>', '{st.session_state.get("p_name", "담당자미상")}');
             html = html.replace('<span id="val_phone"></span>', '{st.session_state.p_phone}');
             
             var isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
@@ -456,21 +458,17 @@ if st.session_state.cart:
         else:
             if submit_btn:  
                 mail_cname = st.session_state.c_name
-                mail_pname = st.session_state.p_name if st.session_state.p_name else "담당자미상"
                 mail_phone = st.session_state.p_phone
-                subject = f"🔔 [주문] {mail_cname} ({mail_pname})"
+                subject = f"🔔 [주문] {mail_cname}"
                 to_emails = f"kspole@naver.com"
                 if st.session_state.c_email: to_emails += f",{st.session_state.c_email}"
             else:  
-                # 4번 수정사항: 내 메일로 발송 시 요청하신 정보로 고정 처리
-                mail_cname = "한국시스템폴"
-                mail_pname = "이사 이현욱"
+                mail_cname = "한국시스템폴 (내부보관용)"
                 mail_phone = "010-3304-2221"
                 subject = f"📄 [견적서 보관용] 한국시스템폴 제품 단가표"
                 to_emails = st.session_state.c_email
             
             email_html_body = html_template.replace('<span id="val_cname"></span>', mail_cname)
-            email_html_body = email_html_body.replace('<span id="val_pname"></span>', mail_pname)
             email_html_body = email_html_body.replace('<span id="val_phone"></span>', mail_phone)
             
             try:
@@ -488,7 +486,6 @@ if st.session_state.cart:
                 
                 msg.add_alternative(email_html_body, subtype='html')
                 
-                # 3번 수정사항: 이메일에 직접 HTML 전자문서 첨부되도록 처리
                 attachment_data = email_html_body.encode('utf-8')
                 msg.add_attachment(attachment_data, maintype='text', subtype='html', filename="KSP_견적서.html")
                 
@@ -500,7 +497,7 @@ if st.session_state.cart:
                 
                 if submit_btn: st.session_state.cart = []
                 st.session_state.mail_sent = True
-                st.success("✅ 메일 발송이 성공적으로 완료되었습니다!")
+                st.success("✅ 메일 발송이 완료되었습니다! (견적서 파일 첨부)")
                 st.rerun()
             except Exception as e: 
                 st.error(f"❌ 발송 실패: {e}")
