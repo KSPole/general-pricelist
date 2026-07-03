@@ -62,32 +62,51 @@ def render(filtered_products, options_df, rk, cat_no_space):
     c1, c2, c3 = st.columns(3)
     diameters = sorted(filtered_products['직경(인치)'].dropna().unique())
     sel_dia = c1.selectbox("지름", options=[f"{int(d)}인치" for d in diameters], index=None, placeholder="선택 안 함", key=f"d_{rk}")
+    
     if sel_dia:
         st.session_state.selected_dia_val = sel_dia.replace("인치", "").strip()
         d_val = float(sel_dia.replace("인치", ""))
         thicknesses = sorted(filtered_products[filtered_products['직경(인치)'] == d_val]['두께(T)'].dropna().unique())
         sel_thi = c2.selectbox("두께", options=[f"{t}T" for t in thicknesses], index=None, placeholder="선택 안 함", key=f"t_{rk}")
+        
         if sel_thi:
             t_val = float(sel_thi.replace("T", ""))
             pole_list = filtered_products[(filtered_products['직경(인치)'] == d_val) & (filtered_products['두께(T)'] == t_val)]
-            heights = sorted(pole_list['높이/길이(M)'].dropna().unique())
-            sel_hei = c3.selectbox("높이", options=[f"{h}M" for h in heights], index=None, placeholder="선택 안 함", key=f"h_{rk}")
+            
+            # [수정 2] 0.5M 단위 높이 확장 생성 (최대 높이 제한 준수)
+            actual_heights = sorted(pole_list['높이/길이(M)'].dropna().unique())
+            max_h = max(actual_heights) if actual_heights else 6.0
+            
+            extended_heights = []
+            h = 0.5
+            while h <= max_h:
+                extended_heights.append(h)
+                h += 0.5
+                
+            hei_opts = [f"{int(h)}M" if h.is_integer() else f"{h}M" for h in extended_heights]
+            sel_hei = c3.selectbox("높이 (0.5M 단위)", options=hei_opts, index=None, placeholder="선택 안 함", key=f"h_{rk}")
+            
             if sel_hei:
                 h_val = float(sel_hei.replace("M", ""))
-                if h_val < 6.0:
-                    row = pole_list[pole_list['높이/길이(M)'] == h_val].iloc[0]
+                
+                # 단가 계산용 실제 높이 찾기 (1.5M -> 2.0M 단가 적용 로직)
+                lookup_h = next((x for x in actual_heights if x >= h_val), actual_heights[-1])
+                
+                if lookup_h < 6.0:
+                    row = pole_list[pole_list['높이/길이(M)'] == lookup_h].iloc[0]
                     base_price = int(row['단가'])
+                    # 스펙은 사용자가 실제로 선택한 0.5M 단위로 표기
                     product_specs = f"지름: {sel_dia} / 두께: {sel_thi} / 높이: {sel_hei}"
                     is_main_ready = True
                     if pd.notna(row.get('이미지파일명')): preview_images.append(str(row['이미지파일명']).strip())
                 else:
-                    type_list = pole_list[pole_list['높이/길이(M)'] == h_val]['제품명'].dropna().unique().tolist()
+                    type_list = pole_list[pole_list['높이/길이(M)'] == lookup_h]['제품명'].dropna().unique().tolist()
                     st.markdown("<div style='margin-top:5px; font-size:15px; font-weight:bold; color:#d9534f;'>⚠️ 6M 이상 폴대 제작 방식을 선택해 주세요.</div>", unsafe_allow_html=True)
                     st.markdown("<div class='option-group-title'>📁 제작 방식 선택</div>", unsafe_allow_html=True)
                     r_opts = ["선택 안 함"] + type_list
                     sel_prod_name = st.radio("제작 방식 선택", r_opts, index=utils.get_def_idx(r_opts), horizontal=True, key=f"prod_name_{rk}", label_visibility="collapsed")
                     if sel_prod_name != "선택 안 함":
-                        row = pole_list[(pole_list['높이/길이(M)'] == h_val) & (pole_list['제품명'] == sel_prod_name)].iloc[0]
+                        row = pole_list[(pole_list['높이/길이(M)'] == lookup_h) & (pole_list['제품명'] == sel_prod_name)].iloc[0]
                         base_price = int(row['단가'])
                         product_specs = f"지름: {sel_dia} / 두께: {sel_thi} / 높이: {sel_hei} / 방식: {sel_prod_name}"
                         is_main_ready = True
@@ -97,6 +116,31 @@ def render(filtered_products, options_df, rk, cat_no_space):
         st.markdown("<h2>2. 옵션 선택</h2>", unsafe_allow_html=True)
         opt_col, img_col = st.columns([5.5, 4.5])
         with opt_col:
+            
+            # [수정 1] 하부 부속 (앙카베이스 / 베이스커버) 명시적 선택란 추가
+            st.markdown("<div class='option-group-title'>📁 하부 부속 (앙카베이스 / 베이스커버)</div>", unsafe_allow_html=True)
+            col_a, col_b = st.columns(2)
+            
+            with col_a:
+                anchor_df = options_df[options_df['옵션 구분(그룹명)'].astype(str).str.contains("앙카베이스", na=False)]
+                if not anchor_df.empty:
+                    anchor_opts = ["선택 안 함"] + anchor_df['추가 선택-1'].dropna().unique().tolist()
+                    sel_anchor = st.selectbox("앙카베이스 선택", anchor_opts, key=f"anchor_{rk}")
+                    if sel_anchor != "선택 안 함":
+                        a_row = anchor_df[anchor_df['추가 선택-1'] == sel_anchor].iloc[0]
+                        a_price = int(a_row.get('단가', 0))
+                        priced_options.append({"cart_name": f"앙카베이스: {sel_anchor}", "display_name": f"앙카베이스: {sel_anchor}", "unit_price": a_price, "qty_per_main": 1, "total_per_main": a_price, "group": "하부 부속"})
+            
+            with col_b:
+                cover_df = options_df[options_df['옵션 구분(그룹명)'].astype(str).str.contains("베이스커버", na=False)]
+                if not cover_df.empty:
+                    cover_opts = ["선택 안 함"] + cover_df['추가 선택-1'].dropna().unique().tolist()
+                    sel_cover = st.selectbox("베이스커버 선택", cover_opts, key=f"cover_{rk}")
+                    if sel_cover != "선택 안 함":
+                        c_row = cover_df[cover_df['추가 선택-1'] == sel_cover].iloc[0]
+                        c_price = int(c_row.get('단가', 0))
+                        priced_options.append({"cart_name": f"베이스커버: {sel_cover}", "display_name": f"베이스커버: {sel_cover}", "unit_price": c_price, "qty_per_main": 1, "total_per_main": c_price, "group": "하부 부속"})
+
             st.markdown("<div class='option-group-title'>📁 형태</div>", unsafe_allow_html=True)
             a_opts = ["기본형(I형)", "ㄱ형 (암 1EA)", "T형 (암 2EA)", "벽부형"]
             arm_type = st.radio("형태", a_opts, index=0, label_visibility="collapsed", key=f"at_{rk}")
@@ -200,14 +244,12 @@ def render(filtered_products, options_df, rk, cat_no_space):
                 
                 show_cam = False
                 if wall_arm_type == "L형":
-                    # 👉 [핵심 버그 수정] 버튼을 결합하여 엔터키 무시 현상(Numpad 버그)을 완벽 차단
                     st.markdown("<div style='font-size:14px; margin-bottom:5px; color:#555;'>👉 벽 이격 거리(가로) (mm)</div>", unsafe_allow_html=True)
                     wc1, wc2 = st.columns([7, 3])
                     
                     wall_dist = wc1.text_input("이격거리", placeholder="숫자 입력 후 우측 버튼 클릭", key=f"wall_dist_{rk}", label_visibility="collapsed")
                     applied = wc2.button("입력 확인", key=f"btn_wall_{rk}")
                     
-                    # 버튼을 누르면 포커스가 빠지면서 무조건 값이 세션에 동기화됨
                     raw_dist = st.session_state.get(f"wall_dist_{rk}", "")
                     val_digits = "".join(filter(str.isdigit, str(raw_dist)))
                     
@@ -290,7 +332,9 @@ def render(filtered_products, options_df, rk, cat_no_space):
                     base_p = get_opt_price("카메라 부착 부품", part)
                     priced_options.append({"cart_name": part, "display_name": f"{part} (x{count})", "unit_price": base_p, "qty_per_main": count, "total_per_main": base_p * count, "group": "카메라 부착 부품"})
 
-            utils.render_generic_groups(cat_no_space, options_df, rk, priced_options, zero_options, preview_images)
+            # 위에서 명시적으로 처리한 앙카베이스/베이스커버가 utils에서 중복 출력되지 않도록 필터링 처리
+            filtered_options_df = options_df[~options_df['옵션 구분(그룹명)'].astype(str).str.contains("앙카베이스|베이스커버", na=False)]
+            utils.render_generic_groups(cat_no_space, filtered_options_df, rk, priced_options, zero_options, preview_images)
 
         # 파일명 생성 로직
         combo_names = []
