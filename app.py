@@ -524,7 +524,7 @@ if st.session_state.cart:
                 
                 # ❗주의❗ 여기서 앱 비밀번호를 새로 발급받은 16자리로 변경해 주셔야 에러가 해결됩니다.
                 EMAIL_SENDER = "leehw05221092@gmail.com"
-                EMAIL_PASSWORD = "tcpnhcswwaogeofp" 
+                EMAIL_PASSWORD = "vrwfpdbmshemnljp" 
                 
                 msg = EmailMessage()
                 msg['Subject'] = subject
