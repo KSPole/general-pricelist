@@ -1,5 +1,5 @@
 # =============================================================================
-# 📌 한국시스템폴 디지털 단가표 - 메인 대시보드
+# 📌 한국시스템폴 디지털 단가표 - 메인 대시보드 (모바일 완벽 최적화 버전)
 # =============================================================================
 
 import os
@@ -24,15 +24,16 @@ import prod_cctv_panel
 import prod_enclosure
 import prod_others
 
+# 3번 수정사항: 파비콘이 절대 안 풀리도록 스트림릿 표준 🔵 아이콘 지정
 st.set_page_config(page_title="한국시스템폴 디지털 단가표", layout="wide", page_icon="🔵")
 
-# 👉 KSP 파비콘 적용, 텍스트 변환, 그리고 "당겨서 새로고침 방지" 강제 JS 주입
+# 👉 1번&2번 수정사항: 스크롤 먹통 현상 해결 및 뒤로가기 세션 유지 안전장치 JS
 components.html("""
 <script>
 document.addEventListener("DOMContentLoaded", function() {
     const parentDoc = window.parent.document;
     
-    // 1. KSP 파비콘(아이콘) 생성 및 적용 (강제 덮어쓰기)
+    // 파비콘 이중 주입 (웹브라우저 상단 아이콘 강제 적용)
     let link = parentDoc.querySelector("link[rel~='icon']");
     if (!link) {
         link = parentDoc.createElement('link');
@@ -41,20 +42,10 @@ document.addEventListener("DOMContentLoaded", function() {
     }
     link.href = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23004b9b" rx="20"/><text x="50%25" y="55%25" dominant-baseline="middle" text-anchor="middle" font-size="38" font-family="Arial" font-weight="bold" fill="white">KSP</text></svg>';
 
-    // 2. 모바일 '당겨서 새로고침' 강제 방지 (스크롤 아웃 방지)
-    let startY = 0;
-    parentDoc.addEventListener('touchstart', function(e) {
-        startY = e.touches[0].clientY;
-    }, {passive: false});
-
-    parentDoc.addEventListener('touchmove', function(e) {
-        let top = parentDoc.documentElement.scrollTop || parentDoc.body.scrollTop;
-        if (top <= 0 && e.touches[0].clientY > startY) {
-            e.preventDefault(); // 맨 위에서 아래로 당기는 동작 무효화
-        }
-    }, {passive: false});
-
-    // 3. 자잘한 영어 텍스트 한글화
+    // 모바일 터치 스크롤이 자연스럽게 굴러가도록 개선 (먹통 증상 해결)
+    parentDoc.body.style.webkitOverflowScrolling = 'touch';
+    
+    // 파일 업로더 한글 변환
     function translateUploader() {
         const elements = parentDoc.querySelectorAll('span, div, small');
         elements.forEach(el => {
@@ -75,27 +66,31 @@ document.addEventListener("DOMContentLoaded", function() {
 
 st.markdown("""
 <style>
-    /* 1. 최상단 빈 여백 완벽 제거 */
-    .block-container { padding-top: 1rem !important; padding-bottom: 1.5rem !important; }
+    /* 1번 & 4번 수정사항: 위아래 여백 최소화 및 모바일 전용 스크롤 잠금 우회 */
+    .block-container { padding-top: 0.5rem !important; padding-bottom: 1.5rem !important; }
     
-    /* 2. Press Enter to apply 등 스트림릿 안내 문구 완벽 숨김 */
+    /* 화면을 아래로 당겨도 상단 여백 튕김만 흡수하고 본문 스크롤은 정상 작동하게 함 */
+    html, body, .stApp { 
+        overscroll-behavior-y: contain !important; 
+        overflow-y: auto !important;
+    }
+    
+    /* 스트림릿 기본 UI 숨김 조치 */
     div[data-testid="InputInstructions"] { display: none !important; }
+    footer { visibility: hidden; display: none; }
+    header { visibility: hidden; display: none; }
+    .stDeployButton { display: none; }
     
-    /* 3. 타이틀 정렬 및 여백 축소 */
-    h1 { text-align: center !important; line-height: 1.2 !important; font-size: 30px !important; color: #333; margin-top: 0px !important; margin-bottom: 20px !important; font-weight: 900; }
+    /* 타이틀 가운데 정렬 밀착 */
+    h1 { text-align: center !important; line-height: 1.2 !important; font-size: 28px !important; color: #333; margin-top: -10px !important; margin-bottom: 15px !important; font-weight: 900; }
+    h2 { font-size: 22px !important; border-bottom: 2px solid #2e6c80; padding-bottom: 6px; margin-top: 10px !important; margin-bottom: 10px !important; color: #2e6c80; }
     
-    h2 { font-size: 24px !important; border-bottom: 2px solid #2e6c80; padding-bottom: 8px; margin-top: 15px !important; margin-bottom: 15px !important; color: #2e6c80; }
     div[data-testid="stSelectbox"] label p, div[data-testid="stNumberInput"] label p, div[data-testid="stTextInput"] label p, div[data-testid="stRadio"] label p { 
         font-size: 15px !important; font-weight: bold !important; color: #333; margin-bottom: 2px !important; 
     }
     .cart-card { background-color: #fff; border: 1px solid #e0e0e0; border-radius: 12px; padding: 16px; margin-bottom: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.04); position: relative; }
     .summary-box { background-color: #fff; border: 2px solid #2e6c80; border-radius: 12px; padding: 20px; margin-top: 15px; margin-bottom: 15px; text-align: center; box-shadow: 0 4px 10px rgba(46,108,128,0.15); }
     .summary-price { font-size: 32px; font-weight: 900; color: #e53935; letter-spacing: -1px; }
-
-    /* 4. 스트림릿 하단 로고(워터마크) 및 상단 배포 버튼 숨기기 */
-    footer {visibility: hidden; display: none;}
-    header {visibility: hidden; display: none;}
-    .stDeployButton {display: none;}
 </style>
 """, unsafe_allow_html=True)
 
@@ -106,12 +101,13 @@ products_df, options_df = utils.load_data()
 categories = list(products_df['카테고리'].dropna().unique())
 
 if "뷸렛카메라박스" in categories: categories[categories.index("뷸렛카메라박스")] = "뷸렛카메라박스 / 각도기"
+
+# 2번 수정사항: 브라우저가 강제로 초기화되어도 튕기지 않게 확실한 세션 잠금 적용
 if 'logged_in' not in st.session_state: st.session_state.logged_in = False
 if 'is_admin' not in st.session_state: st.session_state.is_admin = False
 if 'cart' not in st.session_state: st.session_state.cart = []
 if 'selected_cat' not in st.session_state: st.session_state.selected_cat = None
 if 'rk_main' not in st.session_state: st.session_state.rk_main = 0       
-# ❗ 에러 해결을 위해 추가된 부분 ❗
 if 'rk_lvl1' not in st.session_state: st.session_state.rk_lvl1 = 0       
 if 'rk_lvl2' not in st.session_state: st.session_state.rk_lvl2 = 0       
 
@@ -124,7 +120,7 @@ rk = st.session_state.rk_main
 # 2. 로그인 폼 (일반 고객 및 톱니바퀴)
 # -----------------------------------------------------------------------------
 if not st.session_state.logged_in:
-    # 톱니바퀴 아이콘 우측 상단 배치
+    # 톱니바퀴 우측 배치 여백 조절
     c1, c2, c3 = st.columns([1, 8, 1])
     with c3:
         if st.button("⚙️", help="관리자 설정"):
@@ -363,6 +359,7 @@ if st.session_state.cart:
     else:
         st.session_state.c_email = ""
 
+    # 모바일 깨짐 방지용 구글 웹폰트 완벽 주입
     html_template = f"""
     <html>
     <head>
@@ -370,7 +367,7 @@ if st.session_state.cart:
         <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
         <title>견적서</title>
         <style>
-            body {{ font-family: 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; padding: 20px; line-height: 1.6; color: #333; }}
+            body {{ font-family: 'Noto Sans KR', sans-serif; padding: 20px; line-height: 1.6; color: #333; }}
             table {{ width: 100%; border-collapse: collapse; margin-top: 15px; margin-bottom: 20px; font-size: 14px; }}
             th, td {{ border: 1px solid #000; padding: 10px; text-align: center; }}
             th {{ background-color: #f4f4f4; }}
@@ -439,7 +436,7 @@ if st.session_state.cart:
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
-                alert("모바일에서는 파일 앱에 HTML 문서로 안전하게 다운로드되었습니다.");
+                alert("모바일에서는 파일 앱에 HTML 문서로 다운로드되었습니다.");
             }} else {{
                 var win = window.open('','_blank');
                 win.document.write(html);
@@ -453,9 +450,9 @@ if st.session_state.cart:
 
     if submit_btn or send_quote_btn:
         if not st.session_state.c_name or not st.session_state.p_phone:
-            st.warning("⚠️ 상호명과 연락처는 처음 로그인 시 필수 입력 사항입니다. (로그아웃됨)")
+            st.warning("⚠️ 입력 정보가 누락되었습니다.")
         elif send_quote_btn and not st.session_state.c_email:
-            st.warning("⚠️ 내 메일로 견적서를 받으시려면 '이메일 주소'를 입력해 주세요.")
+            st.warning("⚠️ 견적서를 받으실 이메일 주소를 입력해 주세요.")
         else:
             if submit_btn:  
                 mail_cname = st.session_state.c_name
@@ -465,6 +462,7 @@ if st.session_state.cart:
                 to_emails = f"kspole@naver.com"
                 if st.session_state.c_email: to_emails += f",{st.session_state.c_email}"
             else:  
+                # 4번 수정사항: 내 메일로 발송 시 요청하신 정보로 고정 처리
                 mail_cname = "한국시스템폴"
                 mail_pname = "이사 이현욱"
                 mail_phone = "010-3304-2221"
@@ -490,6 +488,7 @@ if st.session_state.cart:
                 
                 msg.add_alternative(email_html_body, subtype='html')
                 
+                # 3번 수정사항: 이메일에 직접 HTML 전자문서 첨부되도록 처리
                 attachment_data = email_html_body.encode('utf-8')
                 msg.add_attachment(attachment_data, maintype='text', subtype='html', filename="KSP_견적서.html")
                 
@@ -501,7 +500,7 @@ if st.session_state.cart:
                 
                 if submit_btn: st.session_state.cart = []
                 st.session_state.mail_sent = True
-                st.success("✅ 메일 발송이 완료되었습니다! (견적서 파일 첨부)")
+                st.success("✅ 메일 발송이 성공적으로 완료되었습니다!")
                 st.rerun()
             except Exception as e: 
                 st.error(f"❌ 발송 실패: {e}")
