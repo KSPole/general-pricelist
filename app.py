@@ -24,8 +24,7 @@ import prod_cctv_panel
 import prod_enclosure
 import prod_others
 
-# 3번 수정사항: 앱 버전 관리 변수 추가
-APP_VERSION = "v1.2.0"
+APP_VERSION = "v1.2.1"
 
 # 파비콘 및 기본 설정
 st.set_page_config(page_title="한국시스템폴 디지털 단가표", layout="wide", page_icon="🔵")
@@ -35,7 +34,6 @@ components.html("""
 document.addEventListener("DOMContentLoaded", function() {
     const parentDoc = window.parent.document;
     
-    // 2번 수정사항: 일반 파비콘 및 모바일 홈 화면 설치용 아이콘(apple-touch-icon) 강제 주입
     const svgIcon = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23004b9b" rx="20"/><text x="50%25" y="55%25" dominant-baseline="middle" text-anchor="middle" font-size="38" font-family="Arial" font-weight="bold" fill="white">KSP</text></svg>';
     
     let link = parentDoc.querySelector("link[rel~='icon']");
@@ -67,7 +65,19 @@ document.addEventListener("DOMContentLoaded", function() {
         });
     }
 
-    const observer = new MutationObserver(() => { translateUploader(); });
+    // ⭐ [핵심 추가] 선택 메뉴(Selectbox) 터치 시 모바일 키보드 팝업 완벽 차단
+    function disableKeyboardOnSelect() {
+        const selectInputs = parentDoc.querySelectorAll('div[data-testid="stSelectbox"] input');
+        selectInputs.forEach(input => {
+            input.setAttribute("inputmode", "none"); // 모바일 가상 키보드 무효화
+            input.setAttribute("readonly", "readonly"); // 텍스트 입력 기능 완전 차단
+        });
+    }
+
+    const observer = new MutationObserver(() => { 
+        translateUploader(); 
+        disableKeyboardOnSelect(); // 화면이 바뀔 때마다 키보드 차단 로직 적용
+    });
     observer.observe(parentDoc.body, { childList: true, subtree: true });
 });
 </script>
@@ -131,7 +141,6 @@ rk = st.session_state.rk_main
 # 2. 로그인 폼 (일반 고객 및 톱니바퀴)
 # -----------------------------------------------------------------------------
 if not st.session_state.logged_in:
-    # 3번 수정사항: 버전 정보와 설정 버튼 우측 상단 나란히 배치
     c1, c2, c3 = st.columns([2.5, 5, 2.5])
     with c3:
         st.markdown(f"<div style='text-align: right; font-size: 13px; color: #888; font-weight: bold; margin-bottom: 5px;'>{APP_VERSION}</div>", unsafe_allow_html=True)
@@ -144,10 +153,8 @@ if not st.session_state.logged_in:
 
     if st.session_state.get('show_admin', False):
         st.markdown("<div style='background-color:#f1f5f9; padding:15px; border-radius:10px; margin-bottom:20px; text-align:center;'>", unsafe_allow_html=True)
-        # 1번 수정사항: 비밀번호 입력란 type="password" 제거로 텍스트 표시
         admin_pw = st.text_input("본사 직원 비밀번호", placeholder="비밀번호를 입력하세요")
         if st.button("관리자 접속", type="primary"):
-            # 1번 수정사항: .lower() 적용으로 대소문자 무시 (Locker1092*** 도 가능)
             if admin_pw.lower() == "locker1092***":
                 st.session_state.update({"c_name":"한국시스템폴", "p_phone":"010-3304-2221", "logged_in":True, "is_admin": True})
                 st.rerun()
