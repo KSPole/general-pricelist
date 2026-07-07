@@ -19,7 +19,6 @@ def render(filtered_products, options_df, rk, cat_no_space):
                 return int(float(val))
         return 0
 
-    # 1번 수정사항: (+단가) 표시를 완전히 제거하고 이름만 깔끔하게 출력
     def render_custom_cctv_camera_parts(cam_type, position_label, rk_suffix):
         if cam_type == "설치 안 함": return None
         
@@ -32,16 +31,29 @@ def render(filtered_products, options_df, rk, cat_no_space):
             parts.extend(["스피드돔 브라켓 부착용 판재", "40A소켓 (회전형으로 부착시)"])
             
         if len(parts) > 1:
+            display_parts = []
+            for p in parts:
+                if p == "선택 안 함":
+                    display_parts.append(p)
+                else:
+                    search_name = "뷸렛카메라박스(변경)" if p == "뷸렛카메라박스" else ("알루미늄 각도기(기본)" if p == "알루미늄 각도기" else p)
+                    price = get_opt_price("카메라 부착 부품", search_name)
+                    
+                    if price > 0 and p != "뷸렛카메라박스": 
+                        display_parts.append(f"{p} (+{price:,}원)")
+                    else: 
+                        display_parts.append(p)
+                        
             st.markdown(f"<div style='font-size:14px; margin-top:5px; margin-bottom:2px; color:#555;'>└ {position_label} 부품 선택</div>", unsafe_allow_html=True)
-            sel_display = st.radio(f"{position_label} 부품", parts, index=0, horizontal=True, key=f"cpart_{rk_suffix}", label_visibility="collapsed")
+            sel_display = st.radio(f"{position_label} 부품", display_parts, index=0, horizontal=True, key=f"cpart_{rk_suffix}", label_visibility="collapsed")
             
             if sel_display == "선택 안 함": return None
-            return sel_display
+            return sel_display.split(" (+")[0]
         return None
 
     is_main_ready, base_price, product_specs = False, 0, ""
     preview_images, priced_options, zero_options, selected_cam_parts = [], [], [], []
-    prod_method_kw = ""  # 3번 수정사항을 위한 제작방식(후렌지/매립) 키워드 변수
+    prod_method_kw = ""
     
     c1, c2, c3 = st.columns(3)
     diameters = sorted(filtered_products['직경(인치)'].dropna().unique())
@@ -84,7 +96,6 @@ def render(filtered_products, options_df, rk, cat_no_space):
                     r_opts = ["선택 안 함"] + type_list
                     sel_prod_name = st.radio("제작 방식 선택", r_opts, index=utils.get_def_idx(r_opts), horizontal=True, key=f"prod_name_{rk}", label_visibility="collapsed")
                     if sel_prod_name != "선택 안 함":
-                        # 3번 수정사항: 6M 이상일 때 후렌지/매립 키워드 저장
                         if "후렌지" in sel_prod_name: prod_method_kw = "-후렌지"
                         elif "매립" in sel_prod_name: prod_method_kw = "-매립"
                         
@@ -206,7 +217,6 @@ def render(filtered_products, options_df, rk, cat_no_space):
                 cam_arm = st.radio("암(Arm)에 설치할 카메라 형태", arm_cam_opts, index=0, horizontal=True, key=f"cam_arm_{rk}", label_visibility="collapsed")
                 if cam_arm != "설치 안 함": arm_part = render_custom_cctv_camera_parts(cam_arm, "암(Arm)", f"arm_{rk}")
             
-            # 카메라 부품 단가 처리
             part_counts = {}
             if main_part: part_counts[main_part] = part_counts.get(main_part, 0) + 1
             if arm_part:
@@ -232,6 +242,7 @@ def render(filtered_products, options_df, rk, cat_no_space):
                     base_p = get_opt_price("카메라 부착 부품", part)
                     priced_options.append({"cart_name": part, "display_name": f"{part} (x{count})", "unit_price": base_p, "qty_per_main": count, "total_per_main": base_p * count, "group": "카메라 부착 부품"})
 
+
             # --- 3. 앙카베이스 / 베이스커버 선택 ---
             st.markdown("<div class='option-group-title'>📁 앙카베이스 / 베이스커버 선택</div>", unsafe_allow_html=True)
             
@@ -243,8 +254,13 @@ def render(filtered_products, options_df, rk, cat_no_space):
                     a_row = anchor_df[anchor_df['추가 선택-1'] == sel_anchor].iloc[0]
                     a_price = int(a_row.get('단가', 0))
                     priced_options.append({"cart_name": f"앙카베이스: {sel_anchor}", "display_name": f"앙카베이스: {sel_anchor}", "unit_price": a_price, "qty_per_main": 1, "total_per_main": a_price, "group": "하부 부속"})
-                    # 2번 수정사항: 앙카베이스 선택 시 도면 이미지 추가 로직 복구
-                    if pd.notna(a_row.get('이미지파일명')): preview_images.append(str(a_row['이미지파일명']).strip())
+                    
+                    # 💡 2번 수정사항: 앙카베이스 엑셀 누락 대비 "앙카베이스" 이미지 강제 지정
+                    img_val = a_row.get('이미지파일명')
+                    if pd.notna(img_val) and str(img_val).strip() != "":
+                        preview_images.append(str(img_val).strip())
+                    else:
+                        preview_images.append("앙카베이스")
             
             cover_df = options_df[options_df['옵션 구분(그룹명)'].astype(str).str.contains("베이스커버", na=False)]
             if not cover_df.empty:
@@ -254,8 +270,13 @@ def render(filtered_products, options_df, rk, cat_no_space):
                     c_row = cover_df[cover_df['추가 선택-1'] == sel_cover].iloc[0]
                     c_price = int(c_row.get('단가', 0))
                     priced_options.append({"cart_name": f"베이스커버: {sel_cover}", "display_name": f"베이스커버: {sel_cover}", "unit_price": c_price, "qty_per_main": 1, "total_per_main": c_price, "group": "하부 부속"})
-                    # 2번 수정사항: 베이스커버 선택 시 도면 이미지 추가 로직 복구
-                    if pd.notna(c_row.get('이미지파일명')): preview_images.append(str(c_row['이미지파일명']).strip())
+                    
+                    # 💡 2번 수정사항: 베이스커버 엑셀 누락 대비 강제 지정
+                    img_val = c_row.get('이미지파일명')
+                    if pd.notna(img_val) and str(img_val).strip() != "":
+                        preview_images.append(str(img_val).strip())
+                    else:
+                        preview_images.append("베이스커버")
 
             # --- 4. 특별 주문 사항 ---
             filtered_options_df = options_df[~options_df['옵션 구분(그룹명)'].astype(str).str.contains("앙카베이스|베이스커버", na=False)]
@@ -286,7 +307,6 @@ def render(filtered_products, options_df, rk, cat_no_space):
             if main_cam_kw: base_prefix += f"-{main_cam_kw}"
             else: base_prefix += "-없음"
             
-            # 3번 수정사항: 후렌지 등 제작방식 키워드 조합
             base_prefix += prod_method_kw
             
             if arm_cam_kw == "스피드돔" and sd_parts:
@@ -301,7 +321,6 @@ def render(filtered_products, options_df, rk, cat_no_space):
                 combo_names.append(base_prefix)
         else:
             base_prefix = f"{cat_no_space}-{arm_kw}"
-            # 3번 수정사항: 후렌지 등 제작방식 키워드 조합
             if main_cam_kw: combo_names.append(f"{base_prefix}-{main_cam_kw}{prod_method_kw}")
             else: combo_names.append(f"{base_prefix}{prod_method_kw}")
                 
