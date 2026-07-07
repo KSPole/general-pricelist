@@ -20,7 +20,7 @@ def render(filtered_products, options_df, rk, cat_no_space):
         return 0
 
     def render_custom_cctv_camera_parts(cam_type, position_label, rk_suffix):
-        if cam_type == "선택 안 함": return None
+        if cam_type == "설치 안 함": return None
         
         parts = ["선택 안 함"] 
         if cam_type == "뷸렛카메라":
@@ -103,10 +103,30 @@ def render(filtered_products, options_df, rk, cat_no_space):
         opt_col, img_col = st.columns([5.5, 4.5])
         with opt_col:
             
-            # --- 1. 형태 선택 ---
-            st.markdown("<div class='option-group-title'>📁 형태</div>", unsafe_allow_html=True)
+            # --- 3. 앙카베이스 / 베이스커버 선택 ---
+            st.markdown("<div class='option-group-title'>📁 앙카베이스 / 베이스커버 선택</div>", unsafe_allow_html=True)
+            anchor_df = options_df[options_df['옵션 구분(그룹명)'].astype(str).str.contains("앙카베이스", na=False)]
+            if not anchor_df.empty:
+                anchor_opts = ["선택 안 함"] + anchor_df['추가 선택-1'].dropna().unique().tolist()
+                sel_anchor = st.selectbox("앙카베이스 선택", anchor_opts, key=f"anchor_{rk}")
+                if sel_anchor != "선택 안 함":
+                    a_row = anchor_df[anchor_df['추가 선택-1'] == sel_anchor].iloc[0]
+                    a_price = int(a_row.get('단가', 0))
+                    priced_options.append({"cart_name": f"앙카베이스: {sel_anchor}", "display_name": f"앙카베이스: {sel_anchor}", "unit_price": a_price, "qty_per_main": 1, "total_per_main": a_price, "group": "하부 부속"})
+            
+            cover_df = options_df[options_df['옵션 구분(그룹명)'].astype(str).str.contains("베이스커버", na=False)]
+            if not cover_df.empty:
+                cover_opts = ["선택 안 함"] + cover_df['추가 선택-1'].dropna().unique().tolist()
+                sel_cover = st.selectbox("베이스커버 선택", cover_opts, key=f"cover_{rk}")
+                if sel_cover != "선택 안 함":
+                    c_row = cover_df[cover_df['추가 선택-1'] == sel_cover].iloc[0]
+                    c_price = int(c_row.get('단가', 0))
+                    priced_options.append({"cart_name": f"베이스커버: {sel_cover}", "display_name": f"베이스커버: {sel_cover}", "unit_price": c_price, "qty_per_main": 1, "total_per_main": c_price, "group": "하부 부속"})
+
+            # --- 1. 폴의 형태 선택 ---
+            st.markdown("<div class='option-group-title'>📁 폴의 형태</div>", unsafe_allow_html=True)
             a_opts = ["기본형(I형)", "ㄱ형 (암 1EA)", "T형 (암 2EA)", "벽부형"]
-            arm_type = st.radio("형태", a_opts, index=0, label_visibility="collapsed", key=f"at_{rk}")
+            arm_type = st.radio("폴의 형태", a_opts, index=0, label_visibility="collapsed", key=f"at_{rk}")
             
             shake_kws = []
             
@@ -162,16 +182,16 @@ def render(filtered_products, options_df, rk, cat_no_space):
                         priced_options.append({"cart_name": f"흔들림방지: {sel_shake}", "display_name": f"흔들림방지: {sel_shake} (x{arm_qty})", "unit_price": s_price, "qty_per_main": arm_qty, "total_per_main": tot_s_price, "group": "흔들림 방지"})
                         shake_kws.append(sel_shake.replace(" ", ""))
 
-            # --- 2. 카메라 형태 선택 ---
+            # --- 2. 설치할 카메라의 형태 선택 ---
             main_part, arm_part = None, None
-            cam_main, cam_arm = "선택 안 함", "선택 안 함"
+            cam_main, cam_arm = "설치 안 함", "설치 안 함"
             wall_arm_type = ""
             
             if arm_type == "기본형(I형)":
-                st.markdown("<div class='option-group-title'>📁 카메라 형태</div>", unsafe_allow_html=True)
-                cam_opts = ["선택 안 함", "뷸렛카메라", "하우징카메라", "스피드돔카메라"]
-                cam_main = st.radio("카메라 형태", cam_opts, index=0, horizontal=True, key=f"cam_main_{rk}", label_visibility="collapsed")
-                if cam_main != "선택 안 함": main_part = render_custom_cctv_camera_parts(cam_main, "카메라 부착", f"main_{rk}")
+                st.markdown("<div class='option-group-title'>📁 설치할 카메라의 형태</div>", unsafe_allow_html=True)
+                cam_opts = ["설치 안 함", "뷸렛카메라", "하우징카메라", "스피드돔카메라"]
+                cam_main = st.radio("설치할 카메라의 형태", cam_opts, index=0, horizontal=True, key=f"cam_main_{rk}", label_visibility="collapsed")
+                if cam_main != "설치 안 함": main_part = render_custom_cctv_camera_parts(cam_main, "카메라 부착", f"main_{rk}")
                     
             elif arm_type == "벽부형":
                 st.markdown("<div class='option-group-title'>📁 벽부형 형태</div>", unsafe_allow_html=True)
@@ -192,22 +212,22 @@ def render(filtered_products, options_df, rk, cat_no_space):
                 else: show_cam = True
                     
                 if show_cam:
-                    st.markdown("<div class='option-group-title'>📁 카메라 형태</div>", unsafe_allow_html=True)
-                    cam_opts = ["선택 안 함", "뷸렛카메라", "하우징카메라", "스피드돔카메라"]
-                    cam_main = st.radio("카메라 형태", cam_opts, index=0, horizontal=True, key=f"cam_main_wall_{rk}", label_visibility="collapsed")
-                    if cam_main != "선택 안 함": main_part = render_custom_cctv_camera_parts(cam_main, "카메라 부착", f"main_wall_{rk}")
+                    st.markdown("<div class='option-group-title'>📁 설치할 카메라의 형태</div>", unsafe_allow_html=True)
+                    cam_opts = ["설치 안 함", "뷸렛카메라", "하우징카메라", "스피드돔카메라"]
+                    cam_main = st.radio("설치할 카메라의 형태", cam_opts, index=0, horizontal=True, key=f"cam_main_wall_{rk}", label_visibility="collapsed")
+                    if cam_main != "설치 안 함": main_part = render_custom_cctv_camera_parts(cam_main, "카메라 부착", f"main_wall_{rk}")
                         
             else:
-                st.markdown("<div class='option-group-title'>📁 메인 / 암 카메라 형태</div>", unsafe_allow_html=True)
-                st.markdown("<div style='margin-top:10px; font-weight:bold; color:#555;'>[메인 폴 상부] 카메라 형태</div>", unsafe_allow_html=True)
-                main_cam_opts = ["선택 안 함", "뷸렛카메라", "하우징카메라"]
-                cam_main = st.radio("메인 폴 상부", main_cam_opts, index=0, horizontal=True, key=f"cam_main_{rk}", label_visibility="collapsed")
-                if cam_main != "선택 안 함": main_part = render_custom_cctv_camera_parts(cam_main, "메인 폴 상부", f"main_{rk}")
+                st.markdown("<div class='option-group-title'>📁 설치할 카메라의 형태</div>", unsafe_allow_html=True)
+                st.markdown("<div style='margin-top:10px; font-weight:bold; color:#555;'>👉 메인 폴 상부 설치할 카메라 형태</div>", unsafe_allow_html=True)
+                main_cam_opts = ["설치 안 함", "뷸렛카메라", "하우징카메라"]
+                cam_main = st.radio("메인 폴 상부 설치할 카메라 형태", main_cam_opts, index=0, horizontal=True, key=f"cam_main_{rk}", label_visibility="collapsed")
+                if cam_main != "설치 안 함": main_part = render_custom_cctv_camera_parts(cam_main, "메인 폴 상부", f"main_{rk}")
                 
-                st.markdown("<div style='margin-top:15px; font-weight:bold; color:#555;'>[암(Arm)] 카메라 형태</div>", unsafe_allow_html=True)
-                arm_cam_opts = ["선택 안 함", "뷸렛카메라", "하우징카메라", "스피드돔카메라"]
-                cam_arm = st.radio("암(Arm)", arm_cam_opts, index=0, horizontal=True, key=f"cam_arm_{rk}", label_visibility="collapsed")
-                if cam_arm != "선택 안 함": arm_part = render_custom_cctv_camera_parts(cam_arm, "암(Arm)", f"arm_{rk}")
+                st.markdown("<div style='margin-top:15px; font-weight:bold; color:#555;'>👉 암(Arm)에 설치할 카메라 형태</div>", unsafe_allow_html=True)
+                arm_cam_opts = ["설치 안 함", "뷸렛카메라", "하우징카메라", "스피드돔카메라"]
+                cam_arm = st.radio("암(Arm)에 설치할 카메라 형태", arm_cam_opts, index=0, horizontal=True, key=f"cam_arm_{rk}", label_visibility="collapsed")
+                if cam_arm != "설치 안 함": arm_part = render_custom_cctv_camera_parts(cam_arm, "암(Arm)", f"arm_{rk}")
             
             # 카메라 부품 단가 처리
             part_counts = {}
@@ -235,29 +255,6 @@ def render(filtered_products, options_df, rk, cat_no_space):
                     base_p = get_opt_price("카메라 부착 부품", part)
                     priced_options.append({"cart_name": part, "display_name": f"{part} (x{count})", "unit_price": base_p, "qty_per_main": count, "total_per_main": base_p * count, "group": "카메라 부착 부품"})
 
-
-            # --- 3. 앙카베이스 / 베이스커버 선택 (카메라 아래, 특별주문사항 위로 이동 및 세로 배치) ---
-            st.markdown("<div class='option-group-title'>📁 앙카베이스 / 베이스커버 선택</div>", unsafe_allow_html=True)
-            
-            anchor_df = options_df[options_df['옵션 구분(그룹명)'].astype(str).str.contains("앙카베이스", na=False)]
-            if not anchor_df.empty:
-                anchor_opts = ["선택 안 함"] + anchor_df['추가 선택-1'].dropna().unique().tolist()
-                sel_anchor = st.selectbox("앙카베이스 선택", anchor_opts, key=f"anchor_{rk}")
-                if sel_anchor != "선택 안 함":
-                    a_row = anchor_df[anchor_df['추가 선택-1'] == sel_anchor].iloc[0]
-                    a_price = int(a_row.get('단가', 0))
-                    priced_options.append({"cart_name": f"앙카베이스: {sel_anchor}", "display_name": f"앙카베이스: {sel_anchor}", "unit_price": a_price, "qty_per_main": 1, "total_per_main": a_price, "group": "하부 부속"})
-            
-            cover_df = options_df[options_df['옵션 구분(그룹명)'].astype(str).str.contains("베이스커버", na=False)]
-            if not cover_df.empty:
-                cover_opts = ["선택 안 함"] + cover_df['추가 선택-1'].dropna().unique().tolist()
-                sel_cover = st.selectbox("베이스커버 선택", cover_opts, key=f"cover_{rk}")
-                if sel_cover != "선택 안 함":
-                    c_row = cover_df[cover_df['추가 선택-1'] == sel_cover].iloc[0]
-                    c_price = int(c_row.get('단가', 0))
-                    priced_options.append({"cart_name": f"베이스커버: {sel_cover}", "display_name": f"베이스커버: {sel_cover}", "unit_price": c_price, "qty_per_main": 1, "total_per_main": c_price, "group": "하부 부속"})
-
-
             # --- 4. 특별 주문 사항 (공통 유틸 로직) ---
             filtered_options_df = options_df[~options_df['옵션 구분(그룹명)'].astype(str).str.contains("앙카베이스|베이스커버", na=False)]
             utils.render_generic_groups(cat_no_space, filtered_options_df, rk, priced_options, zero_options, preview_images)
@@ -267,8 +264,8 @@ def render(filtered_products, options_df, rk, cat_no_space):
         if arm_type == "벽부형": arm_kw = f"벽부형-{wall_arm_type}"
         else: arm_kw = "기본형" if "기본형" in str(arm_type) else ("ㄱ형" if "ㄱ형" in str(arm_type) else "T형")
         
-        main_cam_kw = cam_main.replace("카메라", "") if cam_main and cam_main != "선택 안 함" else ""
-        arm_cam_kw = cam_arm.replace("카메라", "") if cam_arm and cam_arm != "선택 안 함" else ""
+        main_cam_kw = cam_main.replace("카메라", "") if cam_main and cam_main != "설치 안 함" else ""
+        arm_cam_kw = cam_arm.replace("카메라", "") if cam_arm and cam_arm != "설치 안 함" else ""
         
         shake_suffix = ""
         if shake_kws:
