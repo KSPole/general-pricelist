@@ -38,8 +38,12 @@ def render(filtered_products, options_df, rk, cat_no_space):
                 else:
                     search_name = "뷸렛카메라박스(변경)" if p == "뷸렛카메라박스" else ("알루미늄 각도기(기본)" if p == "알루미늄 각도기" else p)
                     price = get_opt_price("카메라 부착 부품", search_name)
-                    if price > 0: display_parts.append(f"{p} (+{price:,}원)")
-                    else: display_parts.append(p)
+                    
+                    # 💡 2번 수정사항: 뷸렛카메라박스일 경우 화면에서 금액 표시를 강제로 제거
+                    if price > 0 and p != "뷸렛카메라박스": 
+                        display_parts.append(f"{p} (+{price:,}원)")
+                    else: 
+                        display_parts.append(p)
                         
             st.markdown(f"<div style='font-size:14px; margin-top:5px; margin-bottom:2px; color:#555;'>└ {position_label} 부품 선택</div>", unsafe_allow_html=True)
             sel_display = st.radio(f"{position_label} 부품", display_parts, index=0, horizontal=True, key=f"cpart_{rk_suffix}", label_visibility="collapsed")
@@ -103,26 +107,6 @@ def render(filtered_products, options_df, rk, cat_no_space):
         opt_col, img_col = st.columns([5.5, 4.5])
         with opt_col:
             
-            # --- 3. 앙카베이스 / 베이스커버 선택 ---
-            st.markdown("<div class='option-group-title'>📁 앙카베이스 / 베이스커버 선택</div>", unsafe_allow_html=True)
-            anchor_df = options_df[options_df['옵션 구분(그룹명)'].astype(str).str.contains("앙카베이스", na=False)]
-            if not anchor_df.empty:
-                anchor_opts = ["선택 안 함"] + anchor_df['추가 선택-1'].dropna().unique().tolist()
-                sel_anchor = st.selectbox("앙카베이스 선택", anchor_opts, key=f"anchor_{rk}")
-                if sel_anchor != "선택 안 함":
-                    a_row = anchor_df[anchor_df['추가 선택-1'] == sel_anchor].iloc[0]
-                    a_price = int(a_row.get('단가', 0))
-                    priced_options.append({"cart_name": f"앙카베이스: {sel_anchor}", "display_name": f"앙카베이스: {sel_anchor}", "unit_price": a_price, "qty_per_main": 1, "total_per_main": a_price, "group": "하부 부속"})
-            
-            cover_df = options_df[options_df['옵션 구분(그룹명)'].astype(str).str.contains("베이스커버", na=False)]
-            if not cover_df.empty:
-                cover_opts = ["선택 안 함"] + cover_df['추가 선택-1'].dropna().unique().tolist()
-                sel_cover = st.selectbox("베이스커버 선택", cover_opts, key=f"cover_{rk}")
-                if sel_cover != "선택 안 함":
-                    c_row = cover_df[cover_df['추가 선택-1'] == sel_cover].iloc[0]
-                    c_price = int(c_row.get('단가', 0))
-                    priced_options.append({"cart_name": f"베이스커버: {sel_cover}", "display_name": f"베이스커버: {sel_cover}", "unit_price": c_price, "qty_per_main": 1, "total_per_main": c_price, "group": "하부 부속"})
-
             # --- 1. 폴의 형태 선택 ---
             st.markdown("<div class='option-group-title'>📁 폴의 형태</div>", unsafe_allow_html=True)
             a_opts = ["기본형(I형)", "ㄱ형 (암 1EA)", "T형 (암 2EA)", "벽부형"]
@@ -219,9 +203,11 @@ def render(filtered_products, options_df, rk, cat_no_space):
                         
             else:
                 st.markdown("<div class='option-group-title'>📁 설치할 카메라의 형태</div>", unsafe_allow_html=True)
-                st.markdown("<div style='margin-top:10px; font-weight:bold; color:#555;'>👉 메인 폴 상부 설치할 카메라 형태</div>", unsafe_allow_html=True)
+                
+                # 💡 3번 수정사항: '에' 글자 추가
+                st.markdown("<div style='margin-top:10px; font-weight:bold; color:#555;'>👉 메인 폴 상부에 설치할 카메라 형태</div>", unsafe_allow_html=True)
                 main_cam_opts = ["설치 안 함", "뷸렛카메라", "하우징카메라"]
-                cam_main = st.radio("메인 폴 상부 설치할 카메라 형태", main_cam_opts, index=0, horizontal=True, key=f"cam_main_{rk}", label_visibility="collapsed")
+                cam_main = st.radio("메인 폴 상부에 설치할 카메라 형태", main_cam_opts, index=0, horizontal=True, key=f"cam_main_{rk}", label_visibility="collapsed")
                 if cam_main != "설치 안 함": main_part = render_custom_cctv_camera_parts(cam_main, "메인 폴 상부", f"main_{rk}")
                 
                 st.markdown("<div style='margin-top:15px; font-weight:bold; color:#555;'>👉 암(Arm)에 설치할 카메라 형태</div>", unsafe_allow_html=True)
@@ -255,7 +241,30 @@ def render(filtered_products, options_df, rk, cat_no_space):
                     base_p = get_opt_price("카메라 부착 부품", part)
                     priced_options.append({"cart_name": part, "display_name": f"{part} (x{count})", "unit_price": base_p, "qty_per_main": count, "total_per_main": base_p * count, "group": "카메라 부착 부품"})
 
-            # --- 4. 특별 주문 사항 (공통 유틸 로직) ---
+
+            # 💡 1번 수정사항: 앙카베이스/베이스커버를 특별 주문 사항 직전에 단단히 고정
+            # --- 3. 앙카베이스 / 베이스커버 선택 ---
+            st.markdown("<div class='option-group-title'>📁 앙카베이스 / 베이스커버 선택</div>", unsafe_allow_html=True)
+            
+            anchor_df = options_df[options_df['옵션 구분(그룹명)'].astype(str).str.contains("앙카베이스", na=False)]
+            if not anchor_df.empty:
+                anchor_opts = ["선택 안 함"] + anchor_df['추가 선택-1'].dropna().unique().tolist()
+                sel_anchor = st.selectbox("앙카베이스 선택", anchor_opts, key=f"anchor_{rk}")
+                if sel_anchor != "선택 안 함":
+                    a_row = anchor_df[anchor_df['추가 선택-1'] == sel_anchor].iloc[0]
+                    a_price = int(a_row.get('단가', 0))
+                    priced_options.append({"cart_name": f"앙카베이스: {sel_anchor}", "display_name": f"앙카베이스: {sel_anchor}", "unit_price": a_price, "qty_per_main": 1, "total_per_main": a_price, "group": "하부 부속"})
+            
+            cover_df = options_df[options_df['옵션 구분(그룹명)'].astype(str).str.contains("베이스커버", na=False)]
+            if not cover_df.empty:
+                cover_opts = ["선택 안 함"] + cover_df['추가 선택-1'].dropna().unique().tolist()
+                sel_cover = st.selectbox("베이스커버 선택", cover_opts, key=f"cover_{rk}")
+                if sel_cover != "선택 안 함":
+                    c_row = cover_df[cover_df['추가 선택-1'] == sel_cover].iloc[0]
+                    c_price = int(c_row.get('단가', 0))
+                    priced_options.append({"cart_name": f"베이스커버: {sel_cover}", "display_name": f"베이스커버: {sel_cover}", "unit_price": c_price, "qty_per_main": 1, "total_per_main": c_price, "group": "하부 부속"})
+
+            # --- 4. 특별 주문 사항 (이 부분이 바로 아래 출력됨) ---
             filtered_options_df = options_df[~options_df['옵션 구분(그룹명)'].astype(str).str.contains("앙카베이스|베이스커버", na=False)]
             utils.render_generic_groups(cat_no_space, filtered_options_df, rk, priced_options, zero_options, preview_images)
 
