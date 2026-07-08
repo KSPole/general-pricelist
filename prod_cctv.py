@@ -255,12 +255,13 @@ def render(filtered_products, options_df, rk, cat_no_space):
                     a_price = int(a_row.get('단가', 0))
                     priced_options.append({"cart_name": f"앙카베이스: {sel_anchor}", "display_name": f"앙카베이스: {sel_anchor}", "unit_price": a_price, "qty_per_main": 1, "total_per_main": a_price, "group": "하부 부속"})
                     
-                    # 💡 2번 수정사항: 앙카베이스 엑셀 누락 대비 "앙카베이스" 이미지 강제 지정
+                    # 💡 2번 수정사항 해결: Pandas 결측치가 문자열 "nan"으로 변환되는 문제 완벽 차단
                     img_val = a_row.get('이미지파일명')
-                    if pd.notna(img_val) and str(img_val).strip() != "":
+                    if pd.notna(img_val) and str(img_val).strip().lower() not in ["", "nan", "none", "<na>"]:
                         preview_images.append(str(img_val).strip())
                     else:
                         preview_images.append("앙카베이스")
+                        preview_images.append(sel_anchor)
             
             cover_df = options_df[options_df['옵션 구분(그룹명)'].astype(str).str.contains("베이스커버", na=False)]
             if not cover_df.empty:
@@ -271,12 +272,13 @@ def render(filtered_products, options_df, rk, cat_no_space):
                     c_price = int(c_row.get('단가', 0))
                     priced_options.append({"cart_name": f"베이스커버: {sel_cover}", "display_name": f"베이스커버: {sel_cover}", "unit_price": c_price, "qty_per_main": 1, "total_per_main": c_price, "group": "하부 부속"})
                     
-                    # 💡 2번 수정사항: 베이스커버 엑셀 누락 대비 강제 지정
+                    # 💡 베이스커버도 동일하게 처리
                     img_val = c_row.get('이미지파일명')
-                    if pd.notna(img_val) and str(img_val).strip() != "":
+                    if pd.notna(img_val) and str(img_val).strip().lower() not in ["", "nan", "none", "<na>"]:
                         preview_images.append(str(img_val).strip())
                     else:
                         preview_images.append("베이스커버")
+                        preview_images.append(sel_cover)
 
             # --- 4. 특별 주문 사항 ---
             filtered_options_df = options_df[~options_df['옵션 구분(그룹명)'].astype(str).str.contains("앙카베이스|베이스커버", na=False)]
