@@ -39,8 +39,15 @@ def render(filtered_products, options_df, rk, cat_no_space):
         if len(parts) > 1:
             display_parts = []
             for p in parts:
-                # 💡 수정사항 3: 스텐 각도기, 번호인식 각도기 등 모든 옵션 뒤의 가격 표시(+10,000원 등)를 완전히 제거하고 깔끔하게 이름만 노출
-                display_parts.append(p)
+                # 💡 오직 "뷸렛카메라박스"일 때만 단가를 조회하여 화면에 표시합니다.
+                if p == "뷸렛카메라박스":
+                    price = get_opt_price("카메라 부착 부품", "뷸렛카메라박스(변경)")
+                    if price > 0:
+                        display_parts.append(f"{p} (+{price:,}원)")
+                    else:
+                        display_parts.append(p)
+                else:
+                    display_parts.append(p)
                         
             st.markdown(f"<div style='font-size:14px; margin-top:5px; margin-bottom:2px; color:#555;'>└ {position_label} 부품 선택</div>", unsafe_allow_html=True)
             sel_display = st.radio(f"{position_label} 부품", display_parts, index=0, horizontal=True, key=f"cpart_{rk_suffix}", label_visibility="collapsed")
