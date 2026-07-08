@@ -8,7 +8,7 @@ def render(filtered_products, options_df, rk, cat_no_space):
         g_clean = re.sub(r'\s+', '', str(group_name))
         o_clean = re.sub(r'\s+', '', str(option_name))
         
-        # 💡 수정사항 1: 적용 카테고리 필터링을 유연하게 처리하여 "벽부형 브라켓, 스텐(서스)밴드형 브라켓"을 모두 포함하도록 합니다.
+        # 적용 카테고리 필터링을 유연하게 처리하여 "벽부형 브라켓, 스텐(서스)밴드형 브라켓"을 모두 포함하도록 합니다.
         df = options_df[
             options_df['적용 카테고리'].astype(str).str.replace(" ", "").str.contains("벽부형|밴드형|" + cat_no_space, na=False)
         ]
@@ -17,7 +17,7 @@ def render(filtered_products, options_df, rk, cat_no_space):
             row_g = re.sub(r'\s+', '', str(row.get('옵션 구분(그룹명)', '')))
             row_o = re.sub(r'\s+', '', str(row.get('추가 선택-1', '')))
             
-            # 💡 수정사항 2: 엑셀 옵션명(뷸렛카메라박스)과 코드상의 옵션명(뷸렛카메라박스(변경))이 다를 경우도 상호 호환되도록 매칭 강화
+            # 엑셀 옵션명(뷸렛카메라박스)과 코드상의 옵션명(뷸렛카메라박스(변경))이 다를 경우도 상호 호환되도록 매칭 강화
             if row_g == g_clean:
                 if row_o == o_clean or o_clean.startswith(row_o) or row_o.startswith(o_clean):
                     val = row.get('단가', 0)
@@ -39,7 +39,7 @@ def render(filtered_products, options_df, rk, cat_no_space):
         if len(parts) > 1:
             display_parts = []
             for p in parts:
-                # 💡 오직 "뷸렛카메라박스"일 때만 단가를 조회하여 화면에 표시합니다.
+                # 오직 "뷸렛카메라박스"일 때만 단가를 조회하여 화면에 표시합니다.
                 if p == "뷸렛카메라박스":
                     price = get_opt_price("카메라 부착 부품", "뷸렛카메라박스(변경)")
                     if price > 0:
@@ -60,12 +60,27 @@ def render(filtered_products, options_df, rk, cat_no_space):
     preview_images, priced_options, zero_options = [], [], []
     
     # --- 1. 기본 제품 선택 ---
-    st.markdown("<div class='option-group-title'>📁 제품 선택</div>", unsafe_allow_html=True)
-    prod_names = sorted(filtered_products['제품명'].dropna().unique())
-    sel_prod = st.selectbox("제품 모델 선택", options=prod_names, index=None, placeholder="선택 유형을 고르세요", key=f"prod_{rk}")
+    # 💡 수정사항: 벽부형 브라켓 선택 시 밴드형 제품이 노출되는 것을 완전히 차단하고 레이블을 '길이 선택'으로 최적화합니다.
+    if "벽부형" in cat_no_space:
+        display_df = filtered_products[
+            filtered_products['제품명'].astype(str).str.contains("벽부형", na=False) & 
+            ~filtered_products['제품명'].astype(str).str.contains("밴드|스텐|서스", na=False)
+        ]
+        label_text = "길이 선택"
+        placeholder_text = "원하시는 브라켓 길이를 선택하세요"
+    else:
+        display_df = filtered_products[
+            filtered_products['제품명'].astype(str).str.contains("밴드|스텐|서스", na=False)
+        ]
+        label_text = "제품 모델 선택"
+        placeholder_text = "선택 유형을 고르세요"
+
+    st.markdown(f"<div class='option-group-title'>📁 {label_text}</div>", unsafe_allow_html=True)
+    prod_names = sorted(display_df['제품명'].dropna().unique())
+    sel_prod = st.selectbox(label_text, options=prod_names, index=None, placeholder=placeholder_text, key=f"prod_{rk}")
     
     if sel_prod:
-        row = filtered_products[filtered_products['제품명'] == sel_prod].iloc[0]
+        row = display_df[display_df['제품명'] == sel_prod].iloc[0]
         base_price = int(row['단가'])
         product_specs = f"제품명: {sel_prod}"
         is_main_ready = True
@@ -107,7 +122,16 @@ def render(filtered_products, options_df, rk, cat_no_space):
                     })
 
             # 기타 특별 주문 사항 등 공통 그룹 렌더링
-            utils.render_generic_groups(cat_no_space, options_df, rk, priced_options, zero_options, preview_images)
+            # 💡 수정사항: 벽부형 브라켓일 때는 하단 옵션 창에서도 밴드/스텐 관련 불필요한 항목이 노출되지 않도록 전처리 필터링합니다.
+            if "벽부형" in cat_no_space:
+                clean_options_df = options_df[
+                    ~options_df['옵션 구분(그룹명)'].astype(str).str.contains("밴드|스텐|서스", na=False) &
+                    ~options_df['추가 선택-1'].astype(str).str.contains("밴드|스텐|서스", na=False)
+                ]
+            else:
+                clean_options_df = options_df
+
+            utils.render_generic_groups(cat_no_space, clean_options_df, rk, priced_options, zero_options, preview_images)
 
         # 이미지 조합 및 출력 로직
         combo_names = [sel_prod, cat_no_space]
