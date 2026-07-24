@@ -176,7 +176,6 @@ def render(filtered_products, options_df, rk, cat_no_space):
                 cam_arm = st.radio("암(Arm)에 설치할 카메라 형태", arm_cam_opts, index=0, horizontal=True, key=f"cam_arm_{rk}", label_visibility="collapsed")
                 if cam_arm != "설치 안 함": arm_part = render_custom_cctv_camera_parts(cam_arm, "암(Arm)", f"arm_{rk}")
             
-            # 카메라 부품 단가 처리
             part_counts = {}
             if main_part: part_counts[main_part] = part_counts.get(main_part, 0) + 1
             if arm_part:
@@ -214,8 +213,7 @@ def render(filtered_products, options_df, rk, cat_no_space):
                     a_row = anchor_df[anchor_df['추가 선택-1'] == sel_anchor].iloc[0]
                     a_price = int(a_row.get('단가', 0))
                     priced_options.append({"cart_name": f"앙카베이스: {sel_anchor}", "display_name": f"앙카베이스: {sel_anchor}", "unit_price": a_price, "qty_per_main": 1, "total_per_main": a_price, "group": "하부 부속"})
-                    if "앙카베이스" not in preview_images:
-                        preview_images.append("앙카베이스")
+                    # 💡 이미지 표시 삭제
             
             cover_df = options_df[options_df['옵션 구분(그룹명)'].astype(str).str.contains("베이스커버", na=False)]
             if not cover_df.empty:
@@ -225,10 +223,8 @@ def render(filtered_products, options_df, rk, cat_no_space):
                     c_row = cover_df[cover_df['추가 선택-1'] == sel_cover].iloc[0]
                     c_price = int(c_row.get('단가', 0))
                     priced_options.append({"cart_name": f"베이스커버: {sel_cover}", "display_name": f"베이스커버: {sel_cover}", "unit_price": c_price, "qty_per_main": 1, "total_per_main": c_price, "group": "하부 부속"})
-                    if "베이스커버" not in preview_images:
-                        preview_images.append("베이스커버")
+                    # 💡 이미지 표시 삭제
 
-            # 💡 3번 수정사항: 흔들림 방지 메뉴를 앙카베이스/베이스커버 다음으로 이동
             # --- 3-1. 흔들림 방지 선택 (ㄱ형, T형일 때만) ---
             if arm_type not in ["기본형(I형)", "벽부형"]:
                 st.markdown("<div class='option-group-title'>📁 흔들림 방지 (선택)</div>", unsafe_allow_html=True)
