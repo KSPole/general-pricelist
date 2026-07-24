@@ -113,6 +113,31 @@ def render(filtered_products, options_df, rk, cat_no_space):
                 st.markdown("<div class='option-group-title'>📁 벽부형 형태</div>", unsafe_allow_html=True)
                 wall_arm_type = st.radio("벽부형 형태", ["I형", "L형"], index=0, horizontal=True, key=f"wall_arm_type_{rk}", label_visibility="collapsed")
                 
+                # 💡 수정사항: 벽부형 단가를 메인 폴 덮어쓰기가 아닌 '옵션 파일'에서 불러와 추가하는 방식으로 변경
+                w_price = 0
+                w_df = options_df[(options_df['적용 카테고리'].astype(str).str.replace(" ", "").str.contains("CCTV폴")) & 
+                                  (options_df['옵션 구분(그룹명)'].astype(str).str.replace(" ", "") == sel_dia.replace(" ", "")) & 
+                                  (options_df['추가 선택-1'].astype(str).str.replace(" ", "") == "벽부형") & 
+                                  (options_df['추가 선택-2'].astype(str).str.replace(" ", "") == wall_arm_type.replace(" ", ""))]
+                
+                if not w_df.empty:
+                    w_price = int(w_df.iloc[0].get('단가', 0))
+                
+                if w_price > 0:
+                    priced_options.append({
+                        "cart_name": f"벽부형 브라켓 ({wall_arm_type})", 
+                        "display_name": f"벽부형 브라켓 ({wall_arm_type})", 
+                        "unit_price": w_price, 
+                        "qty_per_main": 1, 
+                        "total_per_main": w_price, 
+                        "group": "폴의 형태"
+                    })
+                else:
+                    zero_options.append({
+                        "cart_name": f"벽부형 브라켓 ({wall_arm_type})", 
+                        "display_name": f"벽부형 브라켓 ({wall_arm_type})"
+                    })
+                
                 st.markdown("<div style='margin-top:10px; font-weight:bold; color:#555;'>👉 암(Arm) 적용 여부</div>", unsafe_allow_html=True)
                 wall_has_arm = st.radio("암(Arm) 적용", ["적용 안 함", "ㄱ형 암 적용"], index=0, horizontal=True, key=f"wall_has_arm_{rk}", label_visibility="collapsed")
 
@@ -271,23 +296,28 @@ def render(filtered_products, options_df, rk, cat_no_space):
             # --- 3-1. 흔들림 방지 선택 ---
             if has_arm and arm_type != "벽부형":
                 st.markdown("<div class='option-group-title'>📁 흔들림 방지 (선택)</div>", unsafe_allow_html=True)
+                
                 shake_df = options_df[(options_df['적용 카테고리'].astype(str).str.replace(" ", "") == "CCTV폴") & 
-                                      (options_df['옵션 구분(그룹명)'].astype(str).str.replace(" ", "") == "흔들림방지")]
+                                      (options_df['옵션 구분(그룹명)'].astype(str).str.replace(" ", "") == "암(Arm)") & 
+                                      (options_df['추가 선택-1'].astype(str).str.replace(" ", "") == "흔들림방지")]
                 
                 shake_opts = ["선택 안 함"]
-                if not shake_df.empty: shake_opts += [str(x) for x in shake_df['추가 선택-2'].dropna().unique().tolist() if str(x).strip()]
-                else: shake_opts += ["와이어고리", "삼각파이프 받침", "와이어고리&삼각파이프받침"]
+                if not shake_df.empty: 
+                    shake_opts += [str(x) for x in shake_df['추가 선택-2'].dropna().unique().tolist() if str(x).strip()]
 
                 sel_shake = st.radio("흔들림 방지", shake_opts, index=0, horizontal=True, key=f"shake_{rk}", label_visibility="collapsed")
+                
                 if sel_shake != "선택 안 함":
                     s_price = 0
+                    s_clean = sel_shake.replace(" ", "")
+                    
                     if not shake_df.empty:
-                        s_row = shake_df[shake_df['추가 선택-2'] == sel_shake]
-                        if not s_row.empty: s_price = int(s_row.iloc[0].get('단가', 0))
-                    else:
-                        if sel_shake == "와이어고리": s_price = 6000
-                        elif sel_shake == "삼각파이프 받침": s_price = 45000
-                        elif sel_shake == "와이어고리&삼각파이프받침": s_price = 50000
+                        for _, row in shake_df.iterrows():
+                            if str(row.get('추가 선택-2', '')).replace(" ", "") == s_clean:
+                                val = row.get('단가', 0)
+                                if pd.notna(val):
+                                    s_price = int(float(val))
+                                break
                         
                     arm_qty = 2 if arm_type == "T형 (암 2EA)" else 1
                     tot_s_price = s_price * arm_qty
@@ -295,7 +325,7 @@ def render(filtered_products, options_df, rk, cat_no_space):
                     shake_kws.append(sel_shake.replace(" ", ""))
 
             # --- 4. 특별 주문 사항 ---
-            filtered_options_df = options_df[~options_df['옵션 구분(그룹명)'].astype(str).str.contains("앙카베이스|베이스커버|흔들림방지", na=False)]
+            filtered_options_df = options_df[~options_df['옵션 구분(그룹명)'].astype(str).str.contains("앙카베이스|베이스커버", na=False)]
             utils.render_generic_groups(cat_no_space, filtered_options_df, rk, priced_options, zero_options, preview_images)
 
         # --- 5. 최종 이미지 파일명 매칭 로직 ---
@@ -318,7 +348,6 @@ def render(filtered_products, options_df, rk, cat_no_space):
             if "40A소켓" in p: sd_parts.append("40A소켓")
             elif "스피드돔 브라켓" in p: sd_parts.append("스피드돔 브라켓 부착용 판재")
 
-        # 💡 벽부형 세부 파일명 매칭 조합
         if arm_type == "벽부형":
             if wall_has_arm == "ㄱ형 암 적용":
                 arm_kw += "-ㄱ형"
@@ -406,8 +435,7 @@ def render(filtered_products, options_df, rk, cat_no_space):
                 
         part_kws = [re.sub(r'\(.*?\)', '', p).strip() for p in selected_cam_parts]
         
-        # 💡 하위 부품을 파일명에 붙이는 로직
-        if arm_kw == "T형" or (arm_type == "벽부형" and wall_has_arm == "ㄱ형 암 적용"):
+        if arm_kw == "T형":
             for part in part_kws:
                 combo_names.append(f"{base_cctv}-{part}")
         elif arm_cam_kw:
