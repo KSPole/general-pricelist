@@ -31,29 +31,16 @@ def render(filtered_products, options_df, rk, cat_no_space):
             parts.extend(["스피드돔 브라켓 부착용 판재", "40A소켓 (회전형으로 부착시)"])
             
         if len(parts) > 1:
-            display_parts = []
-            for p in parts:
-                if p == "선택 안 함":
-                    display_parts.append(p)
-                else:
-                    search_name = "뷸렛카메라박스(변경)" if p == "뷸렛카메라박스" else ("알루미늄 각도기(기본)" if p == "알루미늄 각도기" else p)
-                    price = get_opt_price("카메라 부착 부품", search_name)
-                    
-                    if price > 0 and p != "뷸렛카메라박스": 
-                        display_parts.append(f"{p} (+{price:,}원)")
-                    else: 
-                        display_parts.append(p)
-                        
+            # 💡 1, 2번 수정사항: (+단가) 표시를 전면 제거하고 이름만 리스트업
             st.markdown(f"<div style='font-size:14px; margin-top:5px; margin-bottom:2px; color:#555;'>└ {position_label} 부품 선택</div>", unsafe_allow_html=True)
-            sel_display = st.radio(f"{position_label} 부품", display_parts, index=0, horizontal=True, key=f"cpart_{rk_suffix}", label_visibility="collapsed")
+            sel_display = st.radio(f"{position_label} 부품", parts, index=0, horizontal=True, key=f"cpart_{rk_suffix}", label_visibility="collapsed")
             
             if sel_display == "선택 안 함": return None
-            return sel_display.split(" (+")[0]
+            return sel_display
         return None
 
     is_main_ready, base_price, product_specs = False, 0, ""
     preview_images, priced_options, zero_options, selected_cam_parts = [], [], [], []
-    prod_method_kw = ""
     
     c1, c2, c3 = st.columns(3)
     diameters = sorted(filtered_products['직경(인치)'].dropna().unique())
@@ -96,9 +83,6 @@ def render(filtered_products, options_df, rk, cat_no_space):
                     r_opts = ["선택 안 함"] + type_list
                     sel_prod_name = st.radio("제작 방식 선택", r_opts, index=utils.get_def_idx(r_opts), horizontal=True, key=f"prod_name_{rk}", label_visibility="collapsed")
                     if sel_prod_name != "선택 안 함":
-                        if "후렌지" in sel_prod_name: prod_method_kw = "-후렌지"
-                        elif "매립" in sel_prod_name: prod_method_kw = "-매립"
-                        
                         row = pole_list[(pole_list['높이/길이(M)'] == lookup_h) & (pole_list['제품명'] == sel_prod_name)].iloc[0]
                         base_price = int(row['단가'])
                         product_specs = f"지름: {sel_dia} / 두께: {sel_thi} / 높이: {sel_hei} / 방식: {sel_prod_name}"
@@ -143,31 +127,6 @@ def render(filtered_products, options_df, rk, cat_no_space):
                             arm_qty = 2 if "T형" in arm_type else 1
                             total_a_price = a_unit_price * arm_qty
                             priced_options.append({"cart_name": f"{sel_arm_len}mm ({arm_qty}개)", "display_name": f"암 길이: {sel_arm_len}mm (x{arm_qty})", "unit_price": a_unit_price, "qty_per_main": arm_qty, "total_per_main": total_a_price, "group": "암길이"})
-                            
-                    st.markdown("<div class='option-group-title'>📁 흔들림 방지 (선택)</div>", unsafe_allow_html=True)
-                    shake_df = options_df[(options_df['적용 카테고리'].astype(str).str.replace(" ", "") == "CCTV폴") & 
-                                          (options_df['옵션 구분(그룹명)'].astype(str).str.replace(" ", "") == "암(Arm)") & 
-                                          (options_df['추가 선택-1'].astype(str).str.replace(" ", "") == "흔들림방지")]
-                    
-                    shake_opts = ["선택 안 함"]
-                    if not shake_df.empty: shake_opts += [str(x) for x in shake_df['추가 선택-2'].dropna().unique().tolist() if str(x).strip()]
-                    else: shake_opts += ["와이어고리", "삼각파이프 받침", "와이어고리&삼각파이프받침"]
-
-                    sel_shake = st.radio("흔들림 방지", shake_opts, index=0, horizontal=True, key=f"shake_{rk}", label_visibility="collapsed")
-                    if sel_shake != "선택 안 함":
-                        s_price = 0
-                        if not shake_df.empty:
-                            s_row = shake_df[shake_df['추가 선택-2'] == sel_shake]
-                            if not s_row.empty: s_price = int(s_row.iloc[0].get('단가', 0))
-                        else:
-                            if sel_shake == "와이어고리": s_price = 6000
-                            elif sel_shake == "삼각파이프 받침": s_price = 45000
-                            elif sel_shake == "와이어고리&삼각파이프받침": s_price = 50000
-                            
-                        arm_qty = 2 if "T형" in arm_type else 1
-                        tot_s_price = s_price * arm_qty
-                        priced_options.append({"cart_name": f"흔들림방지: {sel_shake}", "display_name": f"흔들림방지: {sel_shake} (x{arm_qty})", "unit_price": s_price, "qty_per_main": arm_qty, "total_per_main": tot_s_price, "group": "흔들림 방지"})
-                        shake_kws.append(sel_shake.replace(" ", ""))
 
             # --- 2. 설치할 카메라의 형태 선택 ---
             main_part, arm_part = None, None
@@ -217,6 +176,7 @@ def render(filtered_products, options_df, rk, cat_no_space):
                 cam_arm = st.radio("암(Arm)에 설치할 카메라 형태", arm_cam_opts, index=0, horizontal=True, key=f"cam_arm_{rk}", label_visibility="collapsed")
                 if cam_arm != "설치 안 함": arm_part = render_custom_cctv_camera_parts(cam_arm, "암(Arm)", f"arm_{rk}")
             
+            # 카메라 부품 단가 처리
             part_counts = {}
             if main_part: part_counts[main_part] = part_counts.get(main_part, 0) + 1
             if arm_part:
@@ -254,14 +214,8 @@ def render(filtered_products, options_df, rk, cat_no_space):
                     a_row = anchor_df[anchor_df['추가 선택-1'] == sel_anchor].iloc[0]
                     a_price = int(a_row.get('단가', 0))
                     priced_options.append({"cart_name": f"앙카베이스: {sel_anchor}", "display_name": f"앙카베이스: {sel_anchor}", "unit_price": a_price, "qty_per_main": 1, "total_per_main": a_price, "group": "하부 부속"})
-                    
-                    # 💡 2번 수정사항 해결: Pandas 결측치가 문자열 "nan"으로 변환되는 문제 완벽 차단
-                    img_val = a_row.get('이미지파일명')
-                    if pd.notna(img_val) and str(img_val).strip().lower() not in ["", "nan", "none", "<na>"]:
-                        preview_images.append(str(img_val).strip())
-                    else:
+                    if "앙카베이스" not in preview_images:
                         preview_images.append("앙카베이스")
-                        preview_images.append(sel_anchor)
             
             cover_df = options_df[options_df['옵션 구분(그룹명)'].astype(str).str.contains("베이스커버", na=False)]
             if not cover_df.empty:
@@ -271,17 +225,39 @@ def render(filtered_products, options_df, rk, cat_no_space):
                     c_row = cover_df[cover_df['추가 선택-1'] == sel_cover].iloc[0]
                     c_price = int(c_row.get('단가', 0))
                     priced_options.append({"cart_name": f"베이스커버: {sel_cover}", "display_name": f"베이스커버: {sel_cover}", "unit_price": c_price, "qty_per_main": 1, "total_per_main": c_price, "group": "하부 부속"})
-                    
-                    # 💡 베이스커버도 동일하게 처리
-                    img_val = c_row.get('이미지파일명')
-                    if pd.notna(img_val) and str(img_val).strip().lower() not in ["", "nan", "none", "<na>"]:
-                        preview_images.append(str(img_val).strip())
-                    else:
+                    if "베이스커버" not in preview_images:
                         preview_images.append("베이스커버")
-                        preview_images.append(sel_cover)
+
+            # 💡 3번 수정사항: 흔들림 방지 메뉴를 앙카베이스/베이스커버 다음으로 이동
+            # --- 3-1. 흔들림 방지 선택 (ㄱ형, T형일 때만) ---
+            if arm_type not in ["기본형(I형)", "벽부형"]:
+                st.markdown("<div class='option-group-title'>📁 흔들림 방지 (선택)</div>", unsafe_allow_html=True)
+                shake_df = options_df[(options_df['적용 카테고리'].astype(str).str.replace(" ", "") == "CCTV폴") & 
+                                      (options_df['옵션 구분(그룹명)'].astype(str).str.replace(" ", "") == "흔들림방지")]
+                
+                shake_opts = ["선택 안 함"]
+                if not shake_df.empty: shake_opts += [str(x) for x in shake_df['추가 선택-2'].dropna().unique().tolist() if str(x).strip()]
+                else: shake_opts += ["와이어고리", "삼각파이프 받침", "와이어고리&삼각파이프받침"]
+
+                sel_shake = st.radio("흔들림 방지", shake_opts, index=0, horizontal=True, key=f"shake_{rk}", label_visibility="collapsed")
+                if sel_shake != "선택 안 함":
+                    s_price = 0
+                    if not shake_df.empty:
+                        s_row = shake_df[shake_df['추가 선택-2'] == sel_shake]
+                        if not s_row.empty: s_price = int(s_row.iloc[0].get('단가', 0))
+                    else:
+                        if sel_shake == "와이어고리": s_price = 6000
+                        elif sel_shake == "삼각파이프 받침": s_price = 45000
+                        elif sel_shake == "와이어고리&삼각파이프받침": s_price = 50000
+                        
+                    arm_qty = 2 if "T형" in arm_type else 1
+                    tot_s_price = s_price * arm_qty
+                    priced_options.append({"cart_name": f"흔들림방지: {sel_shake}", "display_name": f"흔들림방지: {sel_shake} (x{arm_qty})", "unit_price": s_price, "qty_per_main": arm_qty, "total_per_main": tot_s_price, "group": "흔들림 방지"})
+                    shake_kws.append(sel_shake.replace(" ", ""))
+
 
             # --- 4. 특별 주문 사항 ---
-            filtered_options_df = options_df[~options_df['옵션 구분(그룹명)'].astype(str).str.contains("앙카베이스|베이스커버", na=False)]
+            filtered_options_df = options_df[~options_df['옵션 구분(그룹명)'].astype(str).str.contains("앙카베이스|베이스커버|흔들림방지", na=False)]
             utils.render_generic_groups(cat_no_space, filtered_options_df, rk, priced_options, zero_options, preview_images)
 
         # --- 5. 최종 이미지 파일명 매칭 로직 ---
@@ -309,8 +285,6 @@ def render(filtered_products, options_df, rk, cat_no_space):
             if main_cam_kw: base_prefix += f"-{main_cam_kw}"
             else: base_prefix += "-없음"
             
-            base_prefix += prod_method_kw
-            
             if arm_cam_kw == "스피드돔" and sd_parts:
                 for sdp in sd_parts:
                     combo_names.append(f"{base_prefix}-{sdp}{shake_suffix}")
@@ -323,16 +297,14 @@ def render(filtered_products, options_df, rk, cat_no_space):
                 combo_names.append(base_prefix)
         else:
             base_prefix = f"{cat_no_space}-{arm_kw}"
-            if main_cam_kw: combo_names.append(f"{base_prefix}-{main_cam_kw}{prod_method_kw}")
-            else: combo_names.append(f"{base_prefix}{prod_method_kw}")
+            if main_cam_kw: combo_names.append(f"{base_prefix}-{main_cam_kw}")
+            else: combo_names.append(base_prefix)
                 
         base_cctv = f"{cat_no_space}-{arm_kw}"
         if main_cam_kw: base_cctv += f"-{main_cam_kw}"
         elif arm_cam_kw: base_cctv += f"-없음-{arm_cam_kw}"
             
-        base_cctv += prod_method_kw
-            
-        cctv_combos = [base_cctv, f"{cat_no_space}-{arm_kw}{prod_method_kw}"]
+        cctv_combos = [base_cctv, f"{cat_no_space}-{arm_kw}"]
         
         for c in cctv_combos:
             combo_names.append(c)
