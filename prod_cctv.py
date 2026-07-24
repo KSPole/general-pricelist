@@ -31,7 +31,6 @@ def render(filtered_products, options_df, rk, cat_no_space):
             parts.extend(["스피드돔 브라켓 부착용 판재", "40A소켓 (회전형으로 부착시)"])
             
         if len(parts) > 1:
-            # 💡 수정사항: (+단가) 표시를 전면 제거하고 이름만 리스트업
             st.markdown(f"<div style='font-size:14px; margin-top:5px; margin-bottom:2px; color:#555;'>└ {position_label} 부품 선택</div>", unsafe_allow_html=True)
             sel_display = st.radio(f"{position_label} 부품", parts, index=0, horizontal=True, key=f"cpart_{rk_suffix}", label_visibility="collapsed")
             
@@ -176,7 +175,6 @@ def render(filtered_products, options_df, rk, cat_no_space):
                 cam_arm = st.radio("암(Arm)에 설치할 카메라 형태", arm_cam_opts, index=0, horizontal=True, key=f"cam_arm_{rk}", label_visibility="collapsed")
                 if cam_arm != "설치 안 함": arm_part = render_custom_cctv_camera_parts(cam_arm, "암(Arm)", f"arm_{rk}")
             
-            # 카메라 부품 단가 처리
             part_counts = {}
             if main_part: part_counts[main_part] = part_counts.get(main_part, 0) + 1
             if arm_part:
@@ -202,7 +200,6 @@ def render(filtered_products, options_df, rk, cat_no_space):
                     base_p = get_opt_price("카메라 부착 부품", part)
                     priced_options.append({"cart_name": part, "display_name": f"{part} (x{count})", "unit_price": base_p, "qty_per_main": count, "total_per_main": base_p * count, "group": "카메라 부착 부품"})
 
-
             # --- 3. 앙카베이스 / 베이스커버 선택 ---
             st.markdown("<div class='option-group-title'>📁 앙카베이스 / 베이스커버 선택</div>", unsafe_allow_html=True)
             
@@ -214,7 +211,6 @@ def render(filtered_products, options_df, rk, cat_no_space):
                     a_row = anchor_df[anchor_df['추가 선택-1'] == sel_anchor].iloc[0]
                     a_price = int(a_row.get('단가', 0))
                     priced_options.append({"cart_name": f"앙카베이스: {sel_anchor}", "display_name": f"앙카베이스: {sel_anchor}", "unit_price": a_price, "qty_per_main": 1, "total_per_main": a_price, "group": "하부 부속"})
-                    # 💡 수정사항: 앙카베이스 선택 시 이미지 불러오기 완벽히 삭제됨
             
             cover_df = options_df[options_df['옵션 구분(그룹명)'].astype(str).str.contains("베이스커버", na=False)]
             if not cover_df.empty:
@@ -224,7 +220,6 @@ def render(filtered_products, options_df, rk, cat_no_space):
                     c_row = cover_df[cover_df['추가 선택-1'] == sel_cover].iloc[0]
                     c_price = int(c_row.get('단가', 0))
                     priced_options.append({"cart_name": f"베이스커버: {sel_cover}", "display_name": f"베이스커버: {sel_cover}", "unit_price": c_price, "qty_per_main": 1, "total_per_main": c_price, "group": "하부 부속"})
-                    # 💡 수정사항: 베이스커버 선택 시 이미지 불러오기 완벽히 삭제됨
 
             # --- 3-1. 흔들림 방지 선택 (ㄱ형, T형일 때만) ---
             if arm_type not in ["기본형(I형)", "벽부형"]:
@@ -251,7 +246,6 @@ def render(filtered_products, options_df, rk, cat_no_space):
                     tot_s_price = s_price * arm_qty
                     priced_options.append({"cart_name": f"흔들림방지: {sel_shake}", "display_name": f"흔들림방지: {sel_shake} (x{arm_qty})", "unit_price": s_price, "qty_per_main": arm_qty, "total_per_main": tot_s_price, "group": "흔들림 방지"})
                     shake_kws.append(sel_shake.replace(" ", ""))
-
 
             # --- 4. 특별 주문 사항 ---
             filtered_options_df = options_df[~options_df['옵션 구분(그룹명)'].astype(str).str.contains("앙카베이스|베이스커버|흔들림방지", na=False)]
@@ -319,7 +313,11 @@ def render(filtered_products, options_df, rk, cat_no_space):
         combo_names.append(cat_no_space)
         combo_names = list(dict.fromkeys(combo_names))
         
-        valid_paths = utils.display_images(combo_names, priced_options, zero_options, preview_images, img_col, cat_no_space)
+        # 💡 원천 봉쇄 핵심 로직: utils.display_images에 전달되는 리스트에서 앙카베이스/베이스커버를 완전히 필터링
+        display_priced_opts = [opt for opt in priced_options if "앙카베이스" not in str(opt.get('cart_name', '')) and "베이스커버" not in str(opt.get('cart_name', ''))]
+        display_zero_opts = [opt for opt in zero_options if "앙카베이스" not in str(opt.get('cart_name', '')) and "베이스커버" not in str(opt.get('cart_name', ''))]
+        
+        valid_paths = utils.display_images(combo_names, display_priced_opts, display_zero_opts, preview_images, img_col, cat_no_space)
         return is_main_ready, base_price, product_specs, valid_paths, priced_options, zero_options
 
     return False, 0, "", [], [], []
