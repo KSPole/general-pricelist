@@ -28,38 +28,22 @@ def render(filtered_products, options_df, rk, cat_no_space):
         return 0
 
     def render_custom_camera_parts(cam_type, position_label, rk_suffix):
-        if cam_type == "설치 안 함": return None
+        if cam_type == "선택 안 함" or cam_type == "설치 안 함": return None
         
-        parts = ["선택 안 함"] 
+        parts = [] 
         if cam_type == "뷸렛카메라":
-            parts.append("뷸렛카메라박스(120*120*120)")
+            parts = ["뷸렛카메라박스", "알루미늄 각도기(기본)"]
         elif cam_type == "하우징카메라":
-            parts.extend(["알루미늄 각도기(기본)", "스텐 각도기", "번호인식 각도기"])
+            parts = ["선택 안 함", "알루미늄 각도기(기본)", "스텐 각도기", "번호인식 각도기"]
         elif cam_type == "스피드돔카메라" or cam_type == "스피드돔 카메라":
-            parts.extend(["스피드돔 브라켓 부착용 판재", "40A소켓 (회전형으로 부착시)"])
+            parts = ["선택 안 함", "스피드돔 브라켓 부착용 판재", "40A소켓 (회전형으로 부착시)"]
             
-        if len(parts) > 1:
-            display_parts = []
-            for p in parts:
-                if p == "선택 안 함":
-                    display_parts.append(p)
-                else:
-                    price = get_opt_price("카메라 부착 부품", p)
-                    # 💡 단가표 이름 불일치 해결
-                    if price == 0 and "뷸렛카메라박스" in p:
-                        price = get_opt_price("카메라 부착 부품", "뷸렛카메라박스")
-                        if price == 0: price = get_opt_price("카메라 부착 부품", "뷸렛카메라박스(변경)")
-                        
-                    if price > 0:
-                        display_parts.append(f"{p} (+{price:,}원)")
-                    else:
-                        display_parts.append(p)
-                        
+        if parts:
             st.markdown(f"<div style='font-size:14px; margin-top:5px; margin-bottom:2px; color:#555;'>└ {position_label} 부품 선택</div>", unsafe_allow_html=True)
-            sel_display = st.radio(f"{position_label} 부품", display_parts, index=0, horizontal=True, key=f"cpart_{rk_suffix}", label_visibility="collapsed")
+            sel_display = st.radio(f"{position_label} 부품", parts, index=0, horizontal=True, key=f"cpart_{rk_suffix}", label_visibility="collapsed")
             
             if sel_display == "선택 안 함": return None
-            return sel_display.split(" (+")[0]
+            return sel_display
         return None
 
     is_main_ready, base_price, product_specs = False, 0, ""
@@ -104,13 +88,32 @@ def render(filtered_products, options_df, rk, cat_no_space):
 
                 if sel_cam_part:
                     if sel_cam_part == "알루미늄 각도기(기본)":
-                        base_name = "알루미늄 각도기(기본)"
-                        zero_options.append({"cart_name": base_name, "display_name": f"{base_name}(1EA - 포함)"})
-                        product_specs += f" / {base_name}(1EA 포함)"
+                        p_price = get_opt_price("카메라 부착 부품", "알루미늄 각도기(기본)")
+                        if p_price == 0: 
+                            p_price = get_opt_price("카메라 부착 부품", "알루미늄 각도기")
+                            
+                        if p_price == 0:
+                            base_name = "알루미늄 각도기(기본)"
+                            zero_options.append({"cart_name": base_name, "display_name": f"{base_name}(1EA - 포함)"})
+                            product_specs += f" / {base_name}(1EA 포함)"
+                        else:
+                            priced_options.append({"cart_name": sel_cam_part, "display_name": f"{sel_cam_part} (1EA)", "unit_price": p_price, "qty_per_main": 1, "total_per_main": p_price, "group": "카메라 부착 부품"})
                         
-                    elif sel_cam_part == "뷸렛카메라박스(120*120*120)":
-                        # 💡 단가표 이름 불일치 해결
-                        p_price = get_opt_price("카메라 부착 부품", "뷸렛카메라박스(120*120*120)")
+                    elif sel_cam_part == "뷸렛카메라박스":
+                        # 💡 오류 수정: 엑셀의 카테고리와 옵션명을 찾을 때 완벽 일치가 아닌 '포함' 조건으로 유연하게 매칭하여 20,000원을 정확히 가져오도록 변경
+                        p_price = 0
+                        for _, r_opt in options_df.iterrows():
+                            c_cat = str(r_opt.get('적용 카테고리', '')).replace(" ", "")
+                            c_grp = str(r_opt.get('옵션 구분(그룹명)', '')).replace(" ", "")
+                            c_opt = str(r_opt.get('추가 선택-1', '')).replace(" ", "")
+                            
+                            # 벽부형과 밴드형이 포함된 카테고리에서 뷸렛이 포함된 옵션의 단가를 찾음
+                            if "벽부형" in c_cat and "밴드형" in c_cat and "카메라부착" in c_grp and "뷸렛" in c_opt:
+                                val = r_opt.get('단가', 0)
+                                if pd.notna(val):
+                                    p_price = int(float(val))
+                                break
+                                
                         if p_price == 0:
                             p_price = get_opt_price("카메라 부착 부품", "뷸렛카메라박스")
                         if p_price == 0:
@@ -166,7 +169,13 @@ def render(filtered_products, options_df, rk, cat_no_space):
             utils.render_generic_groups(cat_no_space, options_df, rk, priced_options, zero_options, preview_images)
 
         combo_names = []
-        cam_kw = cam_type.replace("카메라", "") if cam_type != "선택 안 함" else ""
+        cam_kw = ""
+        if cam_type != "선택 안 함":
+            if cam_type == "뷸렛카메라" and sel_cam_part == "알루미늄 각도기(기본)":
+                cam_kw = "하우징"
+            else:
+                cam_kw = cam_type.replace("카메라", "")
+                
         shake_suffix = shake_kws[0] if shake_kws else ""
         
         base_combo = f"{cat_no_space}-{cam_kw}" if cam_kw else cat_no_space

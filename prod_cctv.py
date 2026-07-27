@@ -22,17 +22,17 @@ def render(filtered_products, options_df, rk, cat_no_space):
     def render_custom_cctv_camera_parts(cam_type, position_label, rk_suffix, allow_40a=True):
         if cam_type == "설치 안 함": return None
         
-        parts = ["선택 안 함"] 
+        parts = [] 
         if cam_type == "뷸렛카메라":
-            parts.append("뷸렛카메라박스")
+            parts = ["뷸렛카메라박스", "알루미늄 각도기(기본)"]
         elif cam_type == "하우징카메라":
-            parts.extend(["알루미늄 각도기", "스텐 각도기", "번호인식 각도기"])
+            parts = ["선택 안 함", "알루미늄 각도기(기본)", "스텐 각도기", "번호인식 각도기"]
         elif cam_type == "스피드돔카메라":
-            parts.append("스피드돔 브라켓 부착용 판재")
+            parts = ["선택 안 함", "스피드돔 브라켓 부착용 판재"]
             if allow_40a:
                 parts.append("40A소켓 (회전형으로 부착시)")
             
-        if len(parts) > 1:
+        if parts:
             st.markdown(f"<div style='font-size:14px; margin-top:5px; margin-bottom:2px; color:#555;'>└ {position_label} 부품 선택</div>", unsafe_allow_html=True)
             sel_display = st.radio(f"{position_label} 부품", parts, index=0, horizontal=True, key=f"cpart_{rk_suffix}", label_visibility="collapsed")
             
@@ -113,7 +113,6 @@ def render(filtered_products, options_df, rk, cat_no_space):
                 st.markdown("<div class='option-group-title'>📁 벽부형 형태</div>", unsafe_allow_html=True)
                 wall_arm_type = st.radio("벽부형 형태", ["I형", "L형"], index=0, horizontal=True, key=f"wall_arm_type_{rk}", label_visibility="collapsed")
                 
-                # 💡 수정사항: 벽부형 단가를 메인 폴 덮어쓰기가 아닌 '옵션 파일'에서 불러와 추가하는 방식으로 변경
                 w_price = 0
                 w_df = options_df[(options_df['적용 카테고리'].astype(str).str.replace(" ", "").str.contains("CCTV폴")) & 
                                   (options_df['옵션 구분(그룹명)'].astype(str).str.replace(" ", "") == sel_dia.replace(" ", "")) & 
@@ -255,7 +254,7 @@ def render(filtered_products, options_df, rk, cat_no_space):
             selected_cam_parts = list(part_counts.keys())
                 
             for part, count in part_counts.items():
-                if part in ["뷸렛카메라박스", "알루미늄 각도기"]:
+                if part in ["뷸렛카메라박스", "알루미늄 각도기(기본)"]:
                     base_name, add_name = ("뷸렛카메라박스(변경)", "뷸렛카메라박스(추가)") if part == "뷸렛카메라박스" else ("알루미늄 각도기(기본)", "알루미늄 각도기(추가)")
                     base_p, add_p = get_opt_price("카메라 부착 부품", base_name), get_opt_price("카메라 부착 부품", add_name)
                     base_qty, add_qty = 0, 0
@@ -333,8 +332,15 @@ def render(filtered_products, options_df, rk, cat_no_space):
         if arm_type == "벽부형": arm_kw = f"벽부형-{wall_arm_type}"
         else: arm_kw = "기본형" if "기본형" in str(arm_type) else ("ㄱ형" if "ㄱ형" in str(arm_type) else "T형")
         
-        main_cam_kw = cam_main.replace("카메라", "") if cam_main and cam_main != "설치 안 함" else ""
-        arm_cam_kw = cam_arm.replace("카메라", "") if cam_arm and cam_arm != "설치 안 함" else ""
+        # 💡 핵심 수정사항: 뷸렛카메라이면서 알루미늄 각도기(기본)를 선택한 경우, 파일명 검색 키워드를 '하우징'으로 자동 전환
+        def get_cam_img_kw(cam_val, part_val):
+            if not cam_val or cam_val == "설치 안 함": return ""
+            if cam_val == "뷸렛카메라" and part_val == "알루미늄 각도기(기본)":
+                return "하우징"
+            return cam_val.replace("카메라", "")
+
+        main_cam_kw = get_cam_img_kw(cam_main, main_part)
+        arm_cam_kw = get_cam_img_kw(cam_arm, arm_part)
         
         shake_suffix = ""
         if shake_kws:
@@ -379,9 +385,10 @@ def render(filtered_products, options_df, rk, cat_no_space):
                 
         elif arm_kw != "기본형":
             if arm_kw == "T형":
-                main_k = cam_main.replace("카메라", "") if cam_main and cam_main != "설치 안 함" else "없음"
-                right_k = cam_arm_right.replace("카메라", "") if cam_arm_right and cam_arm_right != "설치 안 함" else "없음"
-                left_k = cam_arm_left.replace("카메라", "") if cam_arm_left and cam_arm_left != "설치 안 함" else "없음"
+                # T형의 경우 우측/좌측 암 키워드도 동일하게 get_cam_img_kw 적용
+                main_k = get_cam_img_kw(cam_main, main_part) if get_cam_img_kw(cam_main, main_part) else "없음"
+                right_k = get_cam_img_kw(cam_arm_right, arm_part_right) if get_cam_img_kw(cam_arm_right, arm_part_right) else "없음"
+                left_k = get_cam_img_kw(cam_arm_left, arm_part_left) if get_cam_img_kw(cam_arm_left, arm_part_left) else "없음"
                 
                 base_prefix = f"{cat_no_space}-{arm_kw}-{main_k}-{right_k}-{left_k}{prod_method_kw}"
                 
