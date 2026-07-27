@@ -56,6 +56,14 @@ def render(filtered_products, options_df, rk, cat_no_space):
         g_h = c1.number_input("👉 세로 (벽 부착 길이) (mm)", min_value=0, step=10, value=None, placeholder="숫자만 입력하세요", key=f"g_h_{rk}")
         g_w = c2.number_input("👉 가로 (밖으로 나가는 길이) (mm)", min_value=0, step=10, value=None, placeholder="숫자만 입력하세요", key=f"g_w_{rk}")
         
+        # 💡 수정사항: 이격 길이 및 각도 입력을 가로/세로 입력 바로 밑으로 이동
+        if roof_g_type == "일반 벽 이격 브라켓":
+            st.text_input("👉 이격 길이 (mm)", placeholder="숫자만 입력하세요", key=f"gdist_{rk}")
+        elif roof_g_type == "빗각 벽 이격 브라켓":
+            c3, c4 = st.columns(2)
+            c3.text_input("👉 빗각 벽의 각도", placeholder="숫자만 입력하세요", key=f"gang_{rk}")
+            c4.text_input("👉 이격 길이 (mm)", placeholder="숫자만 입력하세요", key=f"gdist_{rk}")
+        
         if g_w is not None and g_h is not None and g_w > 0 and g_h > 0:
             g_sum = g_w + g_h
             sub_df = filtered_products[filtered_products['제품명'].astype(str).str.contains('ㄱ형', na=False)]
@@ -87,7 +95,6 @@ def render(filtered_products, options_df, rk, cat_no_space):
                 if cam_type == "뷸렛카메라":
                     parts = ["직결형", "뷸렛카메라박스"]
                 elif cam_type == "하우징카메라":
-                    # 💡 수정: (기본) 텍스트 삭제
                     parts = ["선택 안 함", "알루미늄 각도기", "스텐 각도기", "번호인식 각도기"]
                 elif cam_type == "스피드돔카메라" or cam_type == "스피드돔 카메라":
                     parts = ["선택 안 함", "스피드돔 브라켓 부착용 판재", "40A소켓 (회전형으로 부착시)"]
@@ -157,14 +164,14 @@ def render(filtered_products, options_df, rk, cat_no_space):
                     p = get_opt_price("옥상가이드", "120" if "120" in rg else "200")
                     priced_options.append({"cart_name": rg, "display_name": f"옥상가이드: {rg}", "unit_price": p, "qty_per_main": 1, "total_per_main": p, "group": "옥상가이드"})
                 
+                # 💡 수정사항: 세션에 저장된 값을 가져와서 장바구니에 표기하도록 로직 연동
                 elif roof_g_type == "일반 벽 이격 브라켓":
-                    gap_dist = st.text_input("👉 이격 길이 (mm)", placeholder="숫자만 입력", key=f"gdist_{rk}")
+                    gap_dist = st.session_state.get(f"gdist_{rk}", "")
                     if gap_dist: zero_options.append({"cart_name": f"일반벽 이격: {gap_dist}mm", "display_name": f"일반벽 이격: {gap_dist}mm"})
 
                 elif roof_g_type == "빗각 벽 이격 브라켓":
-                    c1, c2 = st.columns(2)
-                    gap_ang = c1.text_input("👉 빗각 벽의 각도", placeholder="숫자만", key=f"gang_{rk}")
-                    gap_dist = c2.text_input("👉 이격 길이 (mm)", placeholder="숫자만", key=f"gdist_{rk}")
+                    gap_ang = st.session_state.get(f"gang_{rk}", "")
+                    gap_dist = st.session_state.get(f"gdist_{rk}", "")
                     if gap_ang and gap_dist: zero_options.append({"cart_name": f"빗각벽 이격: 각도 {gap_ang} / 길이 {gap_dist}mm", "display_name": f"빗각벽 이격: 각도 {gap_ang} / 길이 {gap_dist}mm"})
                 
                 elif roof_g_type == "1단+2단형":
