@@ -28,9 +28,9 @@ def render(filtered_products, options_df, rk, cat_no_space):
         return 0
 
     def render_custom_camera_parts(cam_type, position_label, rk_suffix):
-        if cam_type == "선택 안 함" or cam_type == "설치 안 함": return None
+        if cam_type == "선택 안 함": return None
         
-        parts = [] 
+        parts = ["선택 안 함"] 
         if cam_type == "뷸렛카메라":
             parts = ["뷸렛카메라박스", "알루미늄 각도기(기본)"]
         elif cam_type == "하우징카메라":
@@ -55,10 +55,18 @@ def render(filtered_products, options_df, rk, cat_no_space):
     if inch_col:
         st.markdown("<div style='font-size:15px; font-weight:bold; color:#2e6c80; margin-bottom:5px;'>1️⃣ 파이프 지름(인치) 선택</div>", unsafe_allow_html=True)
         inches = sorted(filtered_products[inch_col].dropna().unique())
-        sel_inch = st.selectbox("파이프 지름", options=[f"{int(x) if x == int(x) else x}인치" for x in inches], index=None, placeholder="인치를 선택해주세요", key=f"inch_{rk}", label_visibility="collapsed")
+        
+        # 💡 수정사항: 인치 뒤에 mm 환산 표기 추가
+        inch_opts = []
+        for x in inches:
+            inch_disp = int(x) if x == int(x) else x
+            inch_opts.append(f"{inch_disp}인치({x * 25.4:.1f}mm)")
+            
+        sel_inch = st.selectbox("파이프 지름", options=inch_opts, index=None, placeholder="인치를 선택해주세요", key=f"inch_{rk}", label_visibility="collapsed")
         
         if sel_inch:
-            sel_inch_val = float(sel_inch.replace("인치", ""))
+            # 💡 수정사항: "4인치(101.6mm)" 형태에서 정확히 숫자만 추출
+            sel_inch_val = float(sel_inch.split("인치")[0])
             
     st.markdown("<div style='font-size:15px; font-weight:bold; color:#2e6c80; margin-top:15px; margin-bottom:5px;'>📏 파이프 규격 확인기</div>", unsafe_allow_html=True)
     circ_str = st.text_input("정확한 파이프의 지름을 모를 경우 둘레(mm) 입력 하세요", value="", key=f"circ_{rk}")
@@ -69,11 +77,22 @@ def render(filtered_products, options_df, rk, cat_no_space):
         circ = float(circ_str.strip())
         if circ > 0:
             calc_dia_mm = circ / 3.14
-            std_pipes = {2: 60.5, 2.5: 76.3, 3: 89.1, 4: 114.3, 5: 139.8, 6: 165.2, 8: 216.3}
-            closest_inch = min(std_pipes.keys(), key=lambda k: abs(std_pipes[k] - calc_dia_mm))
-            st.markdown(f"<div style='background-color:#e8f4f8; border-left:4px solid #2e6c80; padding:10px; margin-top:5px; font-size:14px; font-weight:bold; color:#2e6c80; border-radius:4px;'>💡 둘레 {circ}mm ≒ 지름 {calc_dia_mm:.1f}mm ▶ {closest_inch}인치 규격과 가장 가깝습니다.</div>", unsafe_allow_html=True)
             
-            sel_inch_val = float(closest_inch)
+            matched_inch = None
+            inches_list = sorted(filtered_products[inch_col].dropna().unique()) if inch_col else [2, 2.5, 3, 4, 5, 6, 8]
+            
+            for inc in inches_list:
+                base_mm = inc * 25.4
+                if calc_dia_mm < base_mm + 10:
+                    matched_inch = inc
+                    break
+                    
+            if matched_inch is None and inches_list:
+                matched_inch = inches_list[-1]
+            
+            st.markdown(f"<div style='background-color:#e8f4f8; border-left:4px solid #2e6c80; padding:10px; margin-top:5px; font-size:14px; font-weight:bold; color:#2e6c80; border-radius:4px;'>💡 둘레 {circ}mm ≒ 지름 {calc_dia_mm:.1f}mm ▶ {matched_inch}인치 규격 단가 적용 (기준 지름 +10mm 이상 초과)</div>", unsafe_allow_html=True)
+            
+            sel_inch_val = float(matched_inch)
             is_circ_entered = True 
 
     st.markdown("<hr style='margin:15px 0;'>", unsafe_allow_html=True)
@@ -98,7 +117,8 @@ def render(filtered_products, options_df, rk, cat_no_space):
                 if is_circ_entered:
                     product_specs = f"둘레 {circ_str.strip()}mm (지름 {calc_dia_mm:.0f}mm) / {sel_prod}"
                 else:
-                    product_specs = f"{inch_display}인치 / {sel_prod}"
+                    # 💡 장바구니에도 표기되도록 연동
+                    product_specs = f"{inch_display}인치({sel_inch_val * 25.4:.1f}mm) / {sel_prod}"
                     
                 if pd.notna(row.get('이미지파일명')): preview_images.append(str(row['이미지파일명']).strip())
         else:
@@ -162,7 +182,6 @@ def render(filtered_products, options_df, rk, cat_no_space):
                             c_grp = str(r_opt.get('옵션 구분(그룹명)', '')).replace(" ", "")
                             c_opt = str(r_opt.get('추가 선택-1', '')).replace(" ", "")
                             
-                            # 벽부형/밴드형 복합 카테고리 내에서 뷸렛카메라박스 단가(20,000원) 픽업
                             if "밴드형" in c_cat and "카메라부착" in c_grp and "뷸렛" in c_opt:
                                 val = r_opt.get('단가', 0)
                                 if pd.notna(val):
@@ -186,7 +205,6 @@ def render(filtered_products, options_df, rk, cat_no_space):
                     selected_cam_parts.append(sel_cam_part)
 
             st.markdown("<div class='option-group-title'>📁 흔들림 방지 (선택)</div>", unsafe_allow_html=True)
-            # 👉 regex=False 추가
             shake_df = options_df[options_df['적용 카테고리'].astype(str).str.replace(" ", "").str.contains(cat_no_space, regex=False) & 
                                   (options_df['옵션 구분(그룹명)'].astype(str).str.replace(" ","") == "흔들림방지")]
             
@@ -232,15 +250,7 @@ def render(filtered_products, options_df, rk, cat_no_space):
             utils.render_generic_groups(cat_no_space, options_df, rk, priced_options, zero_options, preview_images)
 
         combo_names = []
-        
-        # 💡 이미지 자동 스위칭 로직 추가: 뷸렛카메라이면서 알루미늄 각도기를 선택한 경우 '하우징'으로 전환
-        cam_kw = ""
-        if cam_type != "선택 안 함":
-            if cam_type == "뷸렛카메라" and sel_cam_part == "알루미늄 각도기(기본)":
-                cam_kw = "하우징"
-            else:
-                cam_kw = cam_type.replace("카메라", "")
-                
+        cam_kw = cam_type.replace("카메라", "") if cam_type != "선택 안 함" else ""
         shake_suffix = shake_kws[0] if shake_kws else ""
         
         base_combo = f"{cat_no_space}-{cam_kw}" if cam_kw else cat_no_space

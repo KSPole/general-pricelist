@@ -23,6 +23,7 @@ import prod_base_cover
 import prod_cctv_panel
 import prod_enclosure
 import prod_others
+import prod_i_bracket
 
 APP_VERSION = "v1.2.1"
 

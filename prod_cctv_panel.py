@@ -12,7 +12,11 @@ def render(filtered_products, options_df, rk, cat_no_space):
 
     if sel_prod:
         st.markdown("<div style='background-color:#f9f9f9; padding:15px; border-radius:8px; margin-top:10px; border:1px solid #e0e0e0;'>", unsafe_allow_html=True)
-        pipe_opt = st.radio("👉 체결할 파이프 지름 선택", ["2인치", "2.5인치", "3인치", "4인치"], index=0, horizontal=True, key=f"cctv_pipe_{rk}")
+        
+        # 💡 수정사항: 인치 뒤에 mm 환산 표시(1인치 = 25.4mm 기준) 추가 적용
+        pipe_opts = ["2인치(50.8mm)", "2.5인치(63.5mm)", "3인치(76.2mm)", "4인치(101.6mm)"]
+        pipe_opt = st.radio("👉 체결할 파이프 지름 선택", pipe_opts, index=0, horizontal=True, key=f"cctv_pipe_{rk}")
+        
         st.markdown("<div style='margin-top:10px;'></div>", unsafe_allow_html=True)
         print_text = st.text_input("👉 인쇄할 문구 직접 입력 (선택)", placeholder="예: 방범용 CCTV 작동중", key=f"cctv_txt_{rk}")
         st.markdown("</div>", unsafe_allow_html=True)
