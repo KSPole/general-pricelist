@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import utils
+import os
 
 def render(filtered_products, options_df, rk, cat_no_space):
     is_main_ready, base_price, product_specs = False, 0, ""
@@ -11,8 +12,31 @@ def render(filtered_products, options_df, rk, cat_no_space):
 
     combo_names = []
     
-    # 엑셀 원본 데이터 (단가 검색용)
-    df_pm = filtered_products
+    if filtered_products is not None and not filtered_products.empty:
+        df_pm = filtered_products.copy()
+    else:
+        df_pm = options_df.copy()
+        
+    df_pm['제품명_검색용'] = df_pm['제품명'].astype(str).str.replace(' ', '') if '제품명' in df_pm.columns else pd.Series()
+    
+    def find_col(keyword):
+        for c in df_pm.columns:
+            if keyword in c: return c
+        return None
+        
+    h_col = find_col('높이/길이')
+    inch_col = find_col('직경')
+
+    # 도면 이미지 중앙 정렬 CSS
+    st.markdown("""
+    <style>
+    [data-testid="stImage"] {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
     if main_type == "뷸렛카메라박스":
         st.markdown("<div style='font-size:14px; margin-top:10px; margin-bottom:5px; color:#555;'>👇 뷸렛카메라박스 종류를 선택해 주세요</div>", unsafe_allow_html=True)
@@ -28,27 +52,56 @@ def render(filtered_products, options_df, rk, cat_no_space):
         # 💡 1. 일반 뷸렛카메라박스
         if sel_bullet == "일반 뷸렛카메라박스":
             st.markdown("<div style='font-size:14px; margin-top:10px; margin-bottom:5px; color:#555;'>👇 카메라박스 높이 선택</div>", unsafe_allow_html=True)
-            box_height = st.radio("높이", ["60mm", "120mm"], index=0, horizontal=True, key=f"bh_{rk}", label_visibility="collapsed")
+            box_height = st.radio("높이", ["60mm", "120mm"], index=1, horizontal=True, key=f"bh_{rk}", label_visibility="collapsed")
             
-            st.markdown("<div style='font-size:14px; margin-top:15px; margin-bottom:5px; color:#555;'>👇 하부 판재 선택</div>", unsafe_allow_html=True)
-            st.info("💡 선택하신 하부 판재의 도면은 우측 미리보기 화면에 표시됩니다.")
+            st.markdown("<div style='font-size:14px; margin-top:20px; margin-bottom:10px; color:#555; font-weight:bold;'>👇 하부 판재 선택</div>", unsafe_allow_html=True)
+            
             plate_opts = ["A타입", "B타입", "C타입", "D타입"]
-            sel_plate = st.radio("하부 판재", plate_opts, index=0, horizontal=True, key=f"plate_{rk}", label_visibility="collapsed")
+            sel_plate = st.radio("하부 판재 라디오", plate_opts, index=0, horizontal=True, key=f"plate_{rk}", label_visibility="collapsed")
             
-            # 단가 매칭
-            match_df = df_pm[df_pm['제품명'].astype(str).str.replace(" ","").str.contains("일반뷸렛", na=False)]
-            base_price = int(match_df.iloc[0]['단가']) if not match_df.empty else 20000
+            st.markdown("<div style='margin-top:10px;'></div>", unsafe_allow_html=True)
+            
+            img_area, empty_area = st.columns([2.5, 7.5])
+            with img_area:
+                cols = st.columns(4, gap="small")
+                plate_names = ["A", "B", "C", "D"]
+                for i, p_name in enumerate(plate_names):
+                    with cols[i]:
+                        img_png = f"images/하부판재-{p_name}.png"
+                        img_jpg = f"images/하부판재-{p_name}.jpg"
+                        
+                        if os.path.exists(img_png):
+                            st.image(img_png, width="stretch")
+                        elif os.path.exists(img_jpg):
+                            st.image(img_jpg, width="stretch")
+                        else:
+                            st.markdown(f"<div style='aspect-ratio: 1; width: 100%; border:1px solid #e0e0e0; display:flex; align-items:center; justify-content:center; border-radius:3px; color:#999; font-size:10px; text-align:center;'>{p_name}<br>없음</div>", unsafe_allow_html=True)
+            
+            h_val = float(box_height.replace("mm", ""))
+            match_df = pd.DataFrame()
+            if '제품명_검색용' in df_pm.columns and h_col:
+                match_df = df_pm[(df_pm['제품명_검색용'] == '일반뷸렛카메라박스') & 
+                                 (pd.to_numeric(df_pm[h_col], errors='coerce') == h_val)]
+            
+            if not match_df.empty:
+                base_price = int(match_df.iloc[0]['단가'])
+            else:
+                base_price = 15000 if h_val == 60 else 20000
             
             product_specs = f"일반 뷸렛카메라박스 - 높이:{box_height} / 하부판재:{sel_plate}"
             is_main_ready = True
-            
-            plate_kw = sel_plate.replace("타입", "")
-            combo_names = [f"하부판재-{plate_kw}", "일반 뷸렛카메라박스"]
+            combo_names = [f"일반 뷸렛카메라박스-{int(h_val)}"]
             
         # 💡 2. 벽부형 뷸렛카메라박스
         elif sel_bullet == "벽부형 뷸렛카메라박스":
-            match_df = df_pm[df_pm['제품명'].astype(str).str.replace(" ","").str.contains("벽부형", na=False)]
-            base_price = int(match_df.iloc[0]['단가']) if not match_df.empty else 20000 # 엑셀 미존재 시 임시단가
+            match_df = pd.DataFrame()
+            if '제품명_검색용' in df_pm.columns:
+                match_df = df_pm[df_pm['제품명_검색용'].str.contains('벽부형', na=False)]
+                
+            if not match_df.empty:
+                base_price = int(match_df.iloc[0]['단가'])
+            else:
+                base_price = 35000
             
             product_specs = "벽부형 뷸렛카메라박스"
             is_main_ready = True
@@ -56,8 +109,14 @@ def render(filtered_products, options_df, rk, cat_no_space):
             
         # 💡 3. 스텐밴드형 뷸렛카메라박스
         elif sel_bullet == "스텐밴드형 뷸렛카메라박스":
-            match_df = df_pm[df_pm['제품명'].astype(str).str.replace(" ","").str.contains("스텐", na=False) & df_pm['제품명'].astype(str).str.replace(" ","").str.contains("밴드", na=False)]
-            base_price = int(match_df.iloc[0]['단가']) if not match_df.empty else 40000
+            match_df = pd.DataFrame()
+            if '제품명_검색용' in df_pm.columns:
+                match_df = df_pm[df_pm['제품명_검색용'].str.contains('스텐', na=False) & df_pm['제품명_검색용'].str.contains('밴드', na=False)]
+                
+            if not match_df.empty:
+                base_price = int(match_df.iloc[0]['단가'])
+            else:
+                base_price = 40000
             
             product_specs = "스텐밴드형 뷸렛카메라박스"
             is_main_ready = True
@@ -69,9 +128,18 @@ def render(filtered_products, options_df, rk, cat_no_space):
             inch_opts = ["2.5인치", "3인치", "4인치", "5인치", "6인치"]
             sel_inch = st.radio("파이프 직경", inch_opts, index=0, horizontal=True, key=f"bullet_inch_{rk}", label_visibility="collapsed")
             
-            # 제품마스터에서 '밴드형 뷸렛카메라박스' 단가 호출 (일단 기본 단가로 처리)
-            match_df = df_pm[df_pm['제품명'].astype(str).str.replace(" ","").str.contains("밴드형", na=False) & ~df_pm['제품명'].astype(str).str.replace(" ","").str.contains("스텐", na=False)]
-            base_price = int(match_df.iloc[0]['단가']) if not match_df.empty else 45000
+            inch_val = float(sel_inch.replace("인치", "").strip())
+            match_df = pd.DataFrame()
+            if '제품명_검색용' in df_pm.columns and inch_col:
+                # 괄호 문법 오류 수정 완료된 영역
+                match_df = df_pm[(df_pm['제품명_검색용'] == '밴드형뷸렛카메라박스') & 
+                                 (pd.to_numeric(df_pm[inch_col], errors='coerce') == inch_val)]
+            
+            if not match_df.empty:
+                base_price = int(match_df.iloc[0]['단가'])
+            else:
+                price_map = {2.5: 45000, 3.0: 45000, 4.0: 45000, 5.0: 50000, 6.0: 55000}
+                base_price = price_map.get(inch_val, 45000)
             
             product_specs = f"밴드형 뷸렛카메라박스 ({sel_inch})"
             is_main_ready = True
@@ -81,11 +149,11 @@ def render(filtered_products, options_df, rk, cat_no_space):
         elif sel_bullet == "주문형 스텐 카메라박스":
             st.markdown("<div style='font-size:14px; margin-top:10px; margin-bottom:5px; color:#555;'>👉 주문제작 치수 입력 (mm)</div>", unsafe_allow_html=True)
             c1, c2, c3 = st.columns(3)
-            c_w = c1.number_input("가로 (mm)", min_value=0, step=10, key=f"cw_{rk}")
-            c_d = c2.number_input("세로 (mm)", min_value=0, step=10, key=f"cd_{rk}")
-            c_h = c3.number_input("높이 (mm)", min_value=0, step=10, key=f"ch_{rk}")
+            c_w = c1.number_input("가로 (mm)", min_value=0, value=None, step=10, key=f"cw_{rk}", placeholder="예: 150")
+            c_d = c2.number_input("세로 (mm)", min_value=0, value=None, step=10, key=f"cd_{rk}", placeholder="예: 150")
+            c_h = c3.number_input("높이 (mm)", min_value=0, value=None, step=10, key=f"ch_{rk}", placeholder="예: 150")
             
-            if c_w > 0 and c_d > 0 and c_h > 0:
+            if c_w is not None and c_d is not None and c_h is not None and c_w > 0 and c_d > 0 and c_h > 0:
                 base_price = 0
                 product_specs = f"주문형 스텐 뷸렛카메라박스 - 가로:{int(c_w)} x 세로:{int(c_d)} x 높이:{int(c_h)}"
                 st.markdown("<div style='font-size:15px; font-weight:bold; color:#d9534f; margin-top:10px;'>💡 단가: 주문제작 단가 (별도 안내)</div>", unsafe_allow_html=True)
@@ -93,7 +161,7 @@ def render(filtered_products, options_df, rk, cat_no_space):
                 combo_names = ["주문형 스텐 뷸렛카메라박스"]
             else:
                 is_main_ready = False
-                st.warning("⚠️ 가로, 세로, 높이를 모두 0보다 크게 입력해 주세요.")
+                st.warning("⚠️ 가로, 세로, 높이에 제작하실 치수(mm)를 모두 입력해 주세요.")
                 combo_names = ["주문형 스텐 뷸렛카메라박스"]
 
     # 💡 6. 각도기
@@ -102,36 +170,22 @@ def render(filtered_products, options_df, rk, cat_no_space):
         ang_opts = ["알루미늄 각도기", "스텐 각도기(80*80)", "번호인식 각도기"]
         sel_ang = st.radio("각도기 선택", ang_opts, index=0, horizontal=True, key=f"ang_sub_{rk}", label_visibility="collapsed")
         
-        # 각도기 단가는 옵션 엑셀에서 가져오는 기존 로직 유지
-        price = 0
-        if sel_ang == "알루미늄 각도기":
-            df_opt = options_df[
-                (options_df['적용 카테고리'].astype(str).str.contains('CCTV폴', na=False)) & 
-                (options_df['옵션 구분(그룹명)'].astype(str).str.contains('카메라 부착 부품', na=False)) & 
-                (options_df['추가 선택-1'].astype(str).str.contains('알루미늄 각도기', regex=False, na=False))
-            ]
-            price = int(df_opt.iloc[0]['단가']) if not df_opt.empty else 8000
+        target_name = sel_ang.replace(" ", "").replace("(80*80)", "")
+        match_df = pd.DataFrame()
+        if '제품명_검색용' in df_pm.columns:
+            match_df = df_pm[df_pm['제품명_검색용'].str.contains(target_name, na=False)]
             
-        elif sel_ang == "스텐 각도기(80*80)":
-            df_opt = options_df[
-                (options_df['적용 카테고리'].astype(str).str.contains('CCTV폴', na=False)) & 
-                (options_df['추가 선택-1'].astype(str).str.contains('스텐 각도기', na=False))
-            ]
-            price = int(df_opt.iloc[0]['단가']) if not df_opt.empty else 10000
-            
-        elif sel_ang == "번호인식 각도기":
-            df_opt = options_df[
-                (options_df['적용 카테고리'].astype(str).str.contains('CCTV폴', na=False)) & 
-                (options_df['추가 선택-1'].astype(str).str.contains('번호인식 각도기', na=False))
-            ]
-            price = int(df_opt.iloc[0]['단가']) if not df_opt.empty else 25000
+        if not match_df.empty:
+            base_price = int(match_df.iloc[0]['단가'])
+        else:
+            ang_map = {"알루미늄각도기": 8000, "스텐각도기": 10000, "번호인식각도기": 25000}
+            base_price = ang_map.get(target_name, 10000)
         
-        base_price = price
         product_specs = f"각도기 - {sel_ang}"
         is_main_ready = True
         
-        ang_kw = sel_ang.replace(" ", "").replace("(80*80)", "")
-        combo_names = [f"각도기-{ang_kw}", "각도기"]
+        ang_kw = sel_ang.replace("(80*80)", "").strip()
+        combo_names = [ang_kw]
 
     # 공통 옵션 렌더링 및 출력
     if is_main_ready:

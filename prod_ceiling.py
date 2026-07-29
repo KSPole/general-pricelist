@@ -21,7 +21,7 @@ def render(filtered_products, options_df, rk, cat_no_space):
         else:
             sel_in = c2.selectbox("속봉(하봉)", options=[], index=None, placeholder="겉봉을 먼저 선택해주세요", key=f"i_{rk}")
         
-        # 👉 [수정 1] 상단 조절 가능 구간 문구 수정
+        # 👉 상단 조절 가능 구간 문구 표시
         if sel_out and sel_in:
             cam_type_state = st.session_state.get(f"cam_other_{rk}", "뷸렛카메라")
             box_height_state = st.session_state.get(f"box_hei_{rk}", "높이 60mm")
@@ -50,7 +50,7 @@ def render(filtered_products, options_df, rk, cat_no_space):
             if min_len > 0 and max_len > 0:
                 st.markdown(f"<div style='background-color:#e8f4f8; border-left:4px solid #2e6c80; padding:10px; margin-top:5px; margin-bottom:15px; font-size:14px; font-weight:bold; color:#2e6c80; border-radius:4px;'>💡 조절 가능 구간 : 최소 {min_len}mm ~ 최대 {max_len}mm</div>", unsafe_allow_html=True)
 
-        # 👉 [수정 2 & 3] 추천기 문구 변경 및 불필요한 텍스트 삭제
+        # 👉 [수정 완료] 맞춤 규격 추천기 (0 제거 및 안내 문구 플레이스홀더 적용)
         with st.expander("🎯 맞춤 규격 추천기 (최소 / 최대 조절 길이를 입력하세요)", expanded=True):
             tc1, tc2 = st.columns(2)
             
@@ -58,10 +58,11 @@ def render(filtered_products, options_df, rk, cat_no_space):
                 st.session_state[f"o_{rk}"] = None
                 st.session_state[f"i_{rk}"] = None
 
-            t_min = tc1.number_input("👉 최소 조절 길이 (mm)", min_value=0, step=10, value=0, key=f"t_min_{rk}", on_change=reset_selections)
-            t_max = tc2.number_input("👉 최대 조절 길이 (mm)", min_value=0, step=10, value=0, key=f"t_max_{rk}", on_change=reset_selections)
+            # value=None으로 초기값 "0"을 제거하고, placeholder 안내 문구 적용
+            t_min = tc1.number_input("👉 최소 조절 길이 (mm)", min_value=0, value=None, step=10, key=f"t_min_{rk}", placeholder="천장에서 최소 길이 입력", on_change=reset_selections)
+            t_max = tc2.number_input("👉 최대 조절 길이 (mm)", min_value=0, value=None, step=10, key=f"t_max_{rk}", placeholder="천장에서 최대 길이 입력", on_change=reset_selections)
             
-            if t_min > 0 and t_max > 0:
+            if t_min is not None and t_max is not None and t_min > 0 and t_max > 0:
                 valid_combos = []
                 approx_combos = []
                 for out_val in outers:
@@ -69,7 +70,6 @@ def render(filtered_products, options_df, rk, cat_no_space):
                     for in_val in inners_for_out:
                         o_val, i_val = int(out_val), int(in_val)
                         
-                        # 공식 적용
                         if i_val >= o_val:
                             min_l = o_val + (i_val - o_val) + 120
                             max_l = o_val + (i_val - 80) + 60
@@ -77,15 +77,12 @@ def render(filtered_products, options_df, rk, cat_no_space):
                             min_l = o_val + 60
                             max_l = o_val + (i_val - 80) + 60
                             
-                        # 추천 원칙: 속봉이 겉봉보다 길지 않도록 (단, 최대 조절 구간 2380 이상은 예외)
                         if (i_val <= o_val) or (max_l >= 2380):
                             combo_info = {'outer': o_val, 'inner': i_val, 'min': min_l, 'max': max_l}
                             
-                            # 조건 100% 만족
                             if min_l <= t_min and max_l >= t_max:
                                 valid_combos.append(combo_info)
                             
-                            # 조건 불만족 시, 모자란 길이를 계산하여 페널티(근사치 오차) 부여
                             penalty = max(0, min_l - t_min) + max(0, t_max - max_l)
                             extra = max(0, t_min - min_l) + max(0, max_l - t_max)
                             combo_info['penalty'] = penalty
@@ -114,9 +111,8 @@ def render(filtered_products, options_df, rk, cat_no_space):
                         st.session_state[f"i_{rk}"] = str(i_val)
 
                     for idx, best in enumerate(top_combos):
-                        # 👉 [수정 4] 1위, 2위, 3위 텍스트 제거
                         btn_label = f"겉봉 {best['outer']} / 속봉 {best['inner']} (조절 가능 구간: {best['min']} ~ {best['max']}mm)"
-                        st.button(btn_label, key=f"rec_btn_{rk}_{idx}_{best['outer']}_{best['inner']}", on_click=apply_recommended_size, args=(best['outer'], best['inner']), use_container_width=True)
+                        st.button(btn_label, key=f"rec_btn_{rk}_{idx}_{best['outer']}_{best['inner']}", on_click=apply_recommended_size, args=(best['outer'], best['inner']), width="stretch")
                 else:
                     st.markdown("<div style='color:#888; font-size:14px; margin-top:8px;'>⚠️ 알맞은 기성품 조합을 찾을 수 없습니다.</div>", unsafe_allow_html=True)
         
@@ -172,7 +168,6 @@ def render(filtered_products, options_df, rk, cat_no_space):
                 box_opts = ["높이 60mm", "높이 120mm"]
                 box_height = st.radio("뷸렛카메라박스 높이", box_opts, index=0, horizontal=True, key=f"box_hei_{rk}", label_visibility="collapsed")
                 
-                # 👉 [수정 5] 박스 높이 선택 직후, 하단에 계산된 조절구간 안내 문구 즉시 표시
                 if sel_out and sel_in:
                     outer_val = int(float(sel_out))
                     inner_val = int(float(sel_in))
