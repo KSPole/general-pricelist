@@ -255,6 +255,8 @@ else:
     elif "로비폰보강판" in cat_no_space: res = prod_lobby.render(filtered, options_df, rk, cat_no_space)
     elif "뷸렛카메라박스" in cat_no_space or "각도기" in cat_no_space: res = prod_bullet_angle.render(filtered, options_df, rk, cat_no_space)
     elif "앙카베이스" in cat_no_space: res = prod_anchor_base.render(filtered, options_df, rk, cat_no_space)
+    elif "i형(수직)브라켓" in cat_no_space or "i형" in cat_no_space:
+       res = prod_i_bracket.render(filtered, options_df, rk, cat_no_space)
     elif "베이스커버" in cat_no_space: res = prod_base_cover.render(filtered, options_df, rk, cat_no_space)
     elif "CCTV작동중판넬" in cat_no_space: res = prod_cctv_panel.render(filtered, options_df, rk, cat_no_space)
     elif "함체" in cat_no_space: res = prod_enclosure.render(filtered, options_df, rk, cat_no_space)
@@ -282,7 +284,14 @@ if is_main_ready:
     for o in zero_options: st.markdown(f"&nbsp;&nbsp;&nbsp;&nbsp;💡 {o['display_name']}")
     for idx, o in enumerate(priced_options):
         c1, c2, c3, c4 = st.columns([4.5, 2, 2.5, 1])
-        opt_q = c4.number_input("수량", min_value=0, value=int(o['qty_per_main'] * quantity), key=f"q_opt_{idx}_{rk}_{quantity}", label_visibility="collapsed")
+        
+        # ⭐ [수량 1 고정 버그 완벽 패치] 
+        # cart_name과 모듈이 넘겨준 진짜 수량(qty_per_main)을 key에 포함시켜,
+        # 수량 설정이 바뀌면 무조건 새로운 값으로 강제 업데이트되도록 스트림릿 캐시 회피!
+        qty_val = int(o.get('qty_per_main', 1) * quantity)
+        unique_key = f"q_opt_{idx}_{rk}_{o.get('cart_name', '')}_{o.get('qty_per_main', 1)}_{quantity}"
+        
+        opt_q = c4.number_input("수량", min_value=0, value=qty_val, key=unique_key, label_visibility="collapsed")
         o['current_cart_q'], o['total_per_main'] = opt_q, o['unit_price'] * opt_q
         
         c1.markdown(f"<div style='padding-top:8px;'>└ {o['display_name']}</div>", unsafe_allow_html=True)
