@@ -4,15 +4,13 @@ import utils
 import re
 
 def render(filtered_products, options_df, rk, cat_no_space):
-    # 💡 괄호 충돌 방지 및 i형(수직) 브라켓 옵션 전용 검색
     escaped_cat = re.escape(cat_no_space)
 
     def get_opt_price(group_name, option_name):
         g_clean = re.sub(r'\s+', '', str(group_name))
         o_clean = re.sub(r'\s+', '', str(option_name))
         
-        # 💡 "CCTV폴" 또는 "i형" 키워드가 포함된 카테고리에서 단가를 무조건 가져오도록 정규식 적용
-        df = options_df[options_df['적용 카테고리'].astype(str).str.replace(" ", "").str.contains(r"CCTV폴|i형", regex=True, na=False)]
+        df = options_df[options_df['적용 카테고리'].astype(str).str.replace(" ", "").str.contains(escaped_cat, regex=True, na=False)]
         
         for idx, row in df.iterrows():
             row_g = re.sub(r'\s+', '', str(row.get('옵션 구분(그룹명)', '')))
@@ -98,7 +96,7 @@ def render(filtered_products, options_df, rk, cat_no_space):
                 wall_arm_type = st.radio("벽부형 형태", ["I형", "L형"], index=0, horizontal=True, key=f"wall_arm_type_{rk}", label_visibility="collapsed")
                 
                 w_price = 0
-                w_df = options_df[(options_df['적용 카테고리'].astype(str).str.replace(" ", "").str.contains(r"CCTV폴|i형", regex=True, na=False)) & 
+                w_df = options_df[(options_df['적용 카테고리'].astype(str).str.replace(" ", "").str.contains(escaped_cat, regex=True, na=False)) & 
                                   (options_df['옵션 구분(그룹명)'].astype(str).str.replace(" ", "") == sel_dia.replace(" ", "")) & 
                                   (options_df['추가 선택-1'].astype(str).str.replace(" ", "") == "벽부형") & 
                                   (options_df['추가 선택-2'].astype(str).str.replace(" ", "") == wall_arm_type.replace(" ", ""))]
@@ -139,7 +137,7 @@ def render(filtered_products, options_df, rk, cat_no_space):
                 allow_40a = False
 
             if has_arm:
-                arm_df = options_df[(options_df['적용 카테고리'].astype(str).str.replace(" ", "").str.contains(r"CCTV폴|i형", regex=True, na=False)) & 
+                arm_df = options_df[(options_df['적용 카테고리'].astype(str).str.replace(" ", "").str.contains(escaped_cat, regex=True, na=False)) & 
                                     (options_df['옵션 구분(그룹명)'].astype(str).str.replace(" ", "") == "암(Arm)")]
                 arm_len_df = arm_df[arm_df['길이/규격'].notna()]
                 
@@ -206,7 +204,6 @@ def render(filtered_products, options_df, rk, cat_no_space):
                     cam_arm = st.radio("암(Arm)에 설치할 카메라 형태", cam_opts, index=0, horizontal=True, key=f"cam_arm_{rk}", label_visibility="collapsed")
                     if cam_arm != "설치 안 함": arm_part = render_custom_cctv_camera_parts(cam_arm, "암(Arm)", f"arm_{rk}", allow_40a)
             
-            # 💡 [핵심 구현] 뷸렛박스/각도기 (기본 vs 추가) 자동 변환 로직
             selected_items = []
             if main_part: selected_items.append(('main', main_part))
             
@@ -221,17 +218,13 @@ def render(filtered_products, options_df, rk, cat_no_space):
             
             for pos, part in selected_items:
                 actual_part = part
-                
                 if part in ["뷸렛카메라박스", "알루미늄 각도기(기본)"]:
                     if not base_slot_used:
                         base_slot_used = True
                         actual_part = part
                     else:
-                        if part == "알루미늄 각도기(기본)":
-                            actual_part = "알루미늄 각도기(추가)"
-                        else:
-                            actual_part = "뷸렛카메라박스"
-                
+                        if part == "알루미늄 각도기(기본)": actual_part = "알루미늄 각도기(추가)"
+                        else: actual_part = "뷸렛카메라박스"
                 part_counts[actual_part] = part_counts.get(actual_part, 0) + 1
 
             selected_cam_parts = list(part_counts.keys())
@@ -239,10 +232,7 @@ def render(filtered_products, options_df, rk, cat_no_space):
             for actual_part, count in part_counts.items():
                 base_p = get_opt_price("카메라 부착 부품", actual_part)
                 
-                # 💡 [초강력 버그 방지] app.py가 무조건 수량을 1로 리셋하는 버그를 뚫기 위해, 
-                # 가능한 모든 수량 키값(qty, quantity, default_qty 등)에 count(예: 2)를 꽉꽉 채워 넣습니다!
                 dynamic_name = f"{actual_part} ({count}EA)"
-                
                 if base_p == 0:
                     zero_options.append({"cart_name": dynamic_name, "display_name": dynamic_name, "qty": count, "qty_per_main": count})
                 else:
@@ -251,17 +241,19 @@ def render(filtered_products, options_df, rk, cat_no_space):
                         "display_name": dynamic_name, 
                         "unit_price": base_p, 
                         "qty_per_main": count, 
-                        "qty": count,            # app.py 강제 수량 인식용
-                        "quantity": count,       # app.py 강제 수량 인식용
-                        "default_qty": count,    # app.py 강제 수량 인식용
+                        "qty": count,            
+                        "quantity": count,       
+                        "default_qty": count,    
                         "total_per_main": base_p * count, 
                         "group": "카메라 부착 부품"
                     })
 
-            # 하부 부속 옵션 숨김 처리
             filtered_options_df = options_df[~options_df['옵션 구분(그룹명)'].astype(str).str.contains("앙카베이스|베이스커버|흔들림방지", na=False)]
             utils.render_generic_groups(cat_no_space, filtered_options_df, rk, priced_options, zero_options, preview_images)
 
+        # ---------------------------------------------------------------------------------
+        # 💡 [핵심] 파일명 단순화 및 각도기 차단 로직
+        # ---------------------------------------------------------------------------------
         combo_names = []
         img_base_keyword = "I형 브라켓"
         
@@ -277,10 +269,11 @@ def render(filtered_products, options_df, rk, cat_no_space):
         main_cam_kw = get_cam_img_kw(cam_main, main_part)
         arm_cam_kw = get_cam_img_kw(cam_arm, arm_part)
         
+        # 💡 [수정] 스피드돔 판재 이름 강제 단축 ("스피드돔 판재")
         sd_parts = []
         for p in selected_cam_parts:
             if "40A소켓" in p: sd_parts.append("40A소켓")
-            elif "스피드돔 브라켓" in p: sd_parts.append("스피드돔 브라켓 부착용 판재")
+            elif "스피드돔 브라켓" in p: sd_parts.append("스피드돔 판재")
 
         if arm_type == "벽부형":
             if wall_has_arm == "ㄱ형 암 적용":
@@ -330,6 +323,7 @@ def render(filtered_products, options_df, rk, cat_no_space):
                 if main_cam_kw: base_prefix += f"-{main_cam_kw}"
                 else: base_prefix += "-없음"
                 
+                # 💡 [핵심] 암(Arm)에 스피드돔이 들어갔을 때의 파일명 완벽 축소 로직
                 if arm_cam_kw == "스피드돔" and sd_parts:
                     for sdp in sd_parts:
                         combo_names.append(f"{base_prefix}-{sdp}")
@@ -355,8 +349,16 @@ def render(filtered_products, options_df, rk, cat_no_space):
         for c in cctv_combos:
             if c not in combo_names: combo_names.append(c)
                 
-        # 💡 [핵심] "알루미늄 각도기" 관련 부품은 도면 이미지 조합 키워드에서 원천 차단하여 그려지지 않도록 함.
-        part_kws = [re.sub(r'\(.*?\)', '', p).strip() for p in selected_cam_parts if "알루미늄 각도기" not in p]
+        # 💡 [핵심] "각도기"라는 단어가 포함된 부품은 파일명 검색 목록에서 100% 삭제 (각도기 단독 이미지 출력 차단)
+        # 💡 추가로 "스피드돔 브라켓"이 있으면 "스피드돔 판재"로 단축어 적용
+        part_kws = []
+        for p in selected_cam_parts:
+            if "각도기" in p: continue
+            clean_p = re.sub(r'\(.*?\)', '', p).strip()
+            if "스피드돔 브라켓" in clean_p:
+                part_kws.append("스피드돔 판재")
+            else:
+                part_kws.append(clean_p)
         
         if arm_kw == "T형":
             for part in part_kws:
@@ -372,7 +374,11 @@ def render(filtered_products, options_df, rk, cat_no_space):
         combo_names.append(img_base_keyword)
         combo_names = list(dict.fromkeys(combo_names))
         
-        valid_paths = utils.display_images(combo_names, priced_options, zero_options, preview_images, img_col, cat_no_space)
+        # utils.display_images 호출 시 옵션 장바구니 리스트에서도 "각도기"는 빼고 던져줍니다.
+        display_priced_opts = [opt for opt in priced_options if "각도기" not in str(opt.get('cart_name', ''))]
+        display_zero_opts = [opt for opt in zero_options if "각도기" not in str(opt.get('cart_name', ''))]
+        
+        valid_paths = utils.display_images(combo_names, display_priced_opts, display_zero_opts, preview_images, img_col, cat_no_space)
         return is_main_ready, base_price, product_specs, valid_paths, priced_options, zero_options
 
     return False, 0, "", [], [], []
