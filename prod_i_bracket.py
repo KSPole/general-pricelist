@@ -86,7 +86,6 @@ def render(filtered_products, options_df, rk, cat_no_space):
             a_opts = ["기본형(I형)", "ㄱ형 (암 1EA)", "T형 (암 2EA)", "벽부형"]
             arm_type = st.radio("브라켓의 형태", a_opts, index=0, label_visibility="collapsed", key=f"at_{rk}")
             
-            shake_kws = []
             wall_arm_type = ""
             wall_has_arm = "적용 안 함"
             show_cam = True
@@ -208,8 +207,8 @@ def render(filtered_products, options_df, rk, cat_no_space):
             if main_part: selected_items.append(('main', main_part))
             
             if arm_type == "T형 (암 2EA)":
-                if arm_part_right: selected_items.append(('arm', arm_part_right))
-                if arm_part_left: selected_items.append(('arm', arm_part_left))
+                if arm_part_right: selected_items.append(('arm_right', arm_part_right))
+                if arm_part_left: selected_items.append(('arm_left', arm_part_left))
             else:
                 if arm_part: selected_items.append(('arm', arm_part))
 
@@ -252,7 +251,7 @@ def render(filtered_products, options_df, rk, cat_no_space):
             utils.render_generic_groups(cat_no_space, filtered_options_df, rk, priced_options, zero_options, preview_images)
 
         # ---------------------------------------------------------------------------------
-        # 💡 [핵심] 파일명 단순화 및 각도기 차단 로직
+        # 💡 [핵심] T형 및 ㄱ형 스피드돔 판재/40A소켓 심플 단축 파일명 매칭 로직
         # ---------------------------------------------------------------------------------
         combo_names = []
         img_base_keyword = "I형 브라켓"
@@ -262,95 +261,67 @@ def render(filtered_products, options_df, rk, cat_no_space):
         
         def get_cam_img_kw(cam_val, part_val):
             if not cam_val or cam_val == "설치 안 함": return ""
-            if cam_val == "뷸렛카메라" and part_val == "알루미늄 각도기(기본)":
-                return "하우징"
+            if cam_val == "뷸렛카메라" and part_val and "각도기" in part_val: return "하우징"
             return cam_val.replace("카메라", "")
+            
+        def get_sd_part_name(part_val):
+            if not part_val: return "스피드돔"
+            if "40A" in part_val: return "40A소켓"
+            if "판재" in part_val: return "스피드돔 판재"
+            return "스피드돔"
 
         main_cam_kw = get_cam_img_kw(cam_main, main_part)
-        arm_cam_kw = get_cam_img_kw(cam_arm, arm_part)
         
-        # 💡 [수정] 스피드돔 판재 이름 강제 단축 ("스피드돔 판재")
-        sd_parts = []
-        for p in selected_cam_parts:
-            if "40A소켓" in p: sd_parts.append("40A소켓")
-            elif "스피드돔 브라켓" in p: sd_parts.append("스피드돔 판재")
-
         if arm_type == "벽부형":
             if wall_has_arm == "ㄱ형 암 적용":
                 arm_kw += "-ㄱ형"
                 main_k = main_cam_kw if main_cam_kw else "없음"
-                arm_k = arm_cam_kw if arm_cam_kw else "없음"
+                arm_k = get_cam_img_kw(cam_arm, arm_part)
+                if arm_k == "스피드돔": arm_k = get_sd_part_name(arm_part)
+                elif not arm_k: arm_k = "없음"
                 
                 base_prefix = f"{img_base_keyword}-{arm_kw}-{main_k}-{arm_k}"
-                
-                if sd_parts:
-                    for sdp in sd_parts:
-                        combo_names.append(f"{base_prefix}-{sdp}")
-                else:
-                    combo_names.append(base_prefix)
-                    
-                base_cctv = base_prefix
-                cctv_combos = [base_cctv, f"{img_base_keyword}-{arm_kw}"]
+                combo_names.append(base_prefix)
             else: 
                 base_prefix = f"{img_base_keyword}-{arm_kw}"
                 if main_cam_kw:
-                    base_cctv = f"{base_prefix}-{main_cam_kw}"
-                    combo_names.append(base_cctv)
-                else:
-                    base_cctv = f"{base_prefix}"
-                    combo_names.append(base_cctv)
-                
-                cctv_combos = [base_cctv, f"{img_base_keyword}-{arm_kw}"]
-                
-        elif arm_kw != "기본형":
-            if arm_kw == "T형":
-                main_k = get_cam_img_kw(cam_main, main_part) if get_cam_img_kw(cam_main, main_part) else "없음"
-                right_k = get_cam_img_kw(cam_arm_right, arm_part_right) if get_cam_img_kw(cam_arm_right, arm_part_right) else "없음"
-                left_k = get_cam_img_kw(cam_arm_left, arm_part_left) if get_cam_img_kw(cam_arm_left, arm_part_left) else "없음"
-                
-                base_prefix = f"{img_base_keyword}-{arm_kw}-{main_k}-{right_k}-{left_k}"
-                
-                if sd_parts:
-                    for sdp in sd_parts:
-                        combo_names.append(f"{base_prefix}-{sdp}")
-                combo_names.append(base_prefix)
-                
-                base_cctv = base_prefix
-                cctv_combos = [base_cctv]
-                
-            else: # ㄱ형
-                base_prefix = f"{img_base_keyword}-{arm_kw}"
-                if main_cam_kw: base_prefix += f"-{main_cam_kw}"
-                else: base_prefix += "-없음"
-                
-                # 💡 [핵심] 암(Arm)에 스피드돔이 들어갔을 때의 파일명 완벽 축소 로직
-                if arm_cam_kw == "스피드돔" and sd_parts:
-                    for sdp in sd_parts:
-                        combo_names.append(f"{base_prefix}-{sdp}")
-                elif arm_cam_kw:
-                    combo_names.append(f"{base_prefix}-{arm_cam_kw}")
+                    combo_names.append(f"{base_prefix}-{main_cam_kw}")
                 else:
                     combo_names.append(base_prefix)
-                    
-                base_cctv = f"{img_base_keyword}-{arm_kw}"
-                if main_cam_kw: base_cctv += f"-{main_cam_kw}"
-                elif arm_cam_kw: base_cctv += f"-없음-{arm_cam_kw}"
-                cctv_combos = [base_cctv, f"{img_base_keyword}-{arm_kw}"]
+                
+        elif arm_kw == "T형":
+            # T형: 메인-우측-좌측 암 부속 이름 매칭
+            main_k = main_cam_kw if main_cam_kw else "없음"
+            
+            right_k = get_cam_img_kw(cam_arm_right, arm_part_right)
+            if right_k == "스피드돔": right_k = get_sd_part_name(arm_part_right)
+            elif not right_k: right_k = "없음"
+            
+            left_k = get_cam_img_kw(cam_arm_left, arm_part_left)
+            if left_k == "스피드돔": left_k = get_sd_part_name(arm_part_left)
+            elif not left_k: left_k = "없음"
+            
+            base_prefix = f"{img_base_keyword}-{arm_kw}-{main_k}-{right_k}-{left_k}"
+            combo_names.append(base_prefix)
+            
+        elif arm_kw == "ㄱ형":
+            main_k = main_cam_kw if main_cam_kw else "없음"
+            base_prefix = f"{img_base_keyword}-{arm_kw}-{main_k}"
+            
+            arm_cam_kw = get_cam_img_kw(cam_arm, arm_part)
+            if arm_cam_kw == "스pi드돔" or arm_cam_kw == "스피드돔":
+                arm_k = get_sd_part_name(arm_part)
+                combo_names.append(f"{base_prefix}-{arm_k}")
+            elif arm_cam_kw:
+                combo_names.append(f"{base_prefix}-{arm_cam_kw}")
+            else:
+                combo_names.append(base_prefix)
         else: # 기본형
             base_prefix = f"{img_base_keyword}-{arm_kw}"
             if main_cam_kw: combo_names.append(f"{base_prefix}-{main_cam_kw}")
-            else: combo_names.append(f"{base_prefix}")
-                
-            base_cctv = f"{img_base_keyword}-{arm_kw}"
-            if main_cam_kw: base_cctv += f"-{main_cam_kw}"
-            elif arm_cam_kw: base_cctv += f"-없음-{arm_cam_kw}"
-            cctv_combos = [base_cctv, f"{img_base_keyword}-{arm_kw}"]
+            else: combo_names.append(base_prefix)
             
-        for c in cctv_combos:
-            if c not in combo_names: combo_names.append(c)
-                
-        # 💡 [핵심] "각도기"라는 단어가 포함된 부품은 파일명 검색 목록에서 100% 삭제 (각도기 단독 이미지 출력 차단)
-        # 💡 추가로 "스피드돔 브라켓"이 있으면 "스피드돔 판재"로 단축어 적용
+        # 💡 [핵심] "각도기" 단어가 포함된 부품은 파일명 검색 목록에서 제외
         part_kws = []
         for p in selected_cam_parts:
             if "각도기" in p: continue
@@ -359,22 +330,13 @@ def render(filtered_products, options_df, rk, cat_no_space):
                 part_kws.append("스피드돔 판재")
             else:
                 part_kws.append(clean_p)
-        
-        if arm_kw == "T형":
-            for part in part_kws:
-                combo_names.append(f"{base_cctv}-{part}")
-        elif arm_cam_kw:
-            for part in part_kws:
-                combo_names.append(f"{base_cctv}-{arm_cam_kw}-{part}")
-                combo_names.append(f"{base_cctv}-{part}")
-        else:
-            for part in part_kws:
-                combo_names.append(f"{base_cctv}-{part}")
+                
+        for part in part_kws:
+            combo_names.append(f"{base_prefix}-{part}")
 
         combo_names.append(img_base_keyword)
         combo_names = list(dict.fromkeys(combo_names))
         
-        # utils.display_images 호출 시 옵션 장바구니 리스트에서도 "각도기"는 빼고 던져줍니다.
         display_priced_opts = [opt for opt in priced_options if "각도기" not in str(opt.get('cart_name', ''))]
         display_zero_opts = [opt for opt in zero_options if "각도기" not in str(opt.get('cart_name', ''))]
         
