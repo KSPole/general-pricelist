@@ -193,15 +193,7 @@ def render(filtered_products, options_df, rk, cat_no_space):
                     gap_dist = st.session_state.get(f"gdist_{rk}", "")
                     if gap_ang and gap_dist: zero_options.append({"cart_name": f"빗각벽 이격: 각도 {gap_ang} / 길이 {gap_dist}mm", "display_name": f"빗각벽 이격: 각도 {gap_ang} / 길이 {gap_dist}mm"})
                 
-                elif roof_g_type == "1단+2단형":
-                    t_opts = ["옥상 바닥 설치형", "옥상 난간 설치형"]
-                    tier_type = st.radio("설치 위치", t_opts, index=0, horizontal=True, key=f"tier_{rk}")
-                    if tier_type == "옥상 난간 설치형":
-                        t1, t2 = st.columns(2)
-                        t_h = t1.text_input("👉 바닥 판재 1번(세로) 사이즈", placeholder="숫자만", key=f"th_{rk}")
-                        t_w = t2.text_input("👉 2번(가로) 사이즈", placeholder="숫자만", key=f"tw_{rk}")
-                        if t_h and t_w: zero_options.append({"cart_name": f"난간 판재: 세로{t_h} x 가로{t_w}", "display_name": f"난간 판재: 세로{t_h} x 가로{t_w}"})
-                
+                # 💡 1단+2단형의 입력창 삭제 (UI 간소화 적용 완료)
                 elif roof_g_type == "난간 샌드위치형":
                     st.info("💡 난간 구조에 대하여 담당자와 협의 필요")
                     zero_options.append({"cart_name": "난간 구조에 대하여 담당자와 협의 필요", "display_name": "난간 구조에 대하여 담당자와 협의 필요"})
