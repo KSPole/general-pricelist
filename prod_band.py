@@ -56,7 +56,6 @@ def render(filtered_products, options_df, rk, cat_no_space):
         st.markdown("<div style='font-size:15px; font-weight:bold; color:#2e6c80; margin-bottom:5px;'>1️⃣ 파이프 지름(인치) 선택</div>", unsafe_allow_html=True)
         inches = sorted(filtered_products[inch_col].dropna().unique())
         
-        # 💡 수정사항: 인치 뒤에 mm 환산 표기 추가
         inch_opts = []
         for x in inches:
             inch_disp = int(x) if x == int(x) else x
@@ -65,11 +64,11 @@ def render(filtered_products, options_df, rk, cat_no_space):
         sel_inch = st.selectbox("파이프 지름", options=inch_opts, index=None, placeholder="인치를 선택해주세요", key=f"inch_{rk}", label_visibility="collapsed")
         
         if sel_inch:
-            # 💡 수정사항: "4인치(101.6mm)" 형태에서 정확히 숫자만 추출
             sel_inch_val = float(sel_inch.split("인치")[0])
             
     st.markdown("<div style='font-size:15px; font-weight:bold; color:#2e6c80; margin-top:15px; margin-bottom:5px;'>📏 파이프 규격 확인기</div>", unsafe_allow_html=True)
-    circ_str = st.text_input("정확한 파이프의 지름을 모를 경우 둘레(mm) 입력 하세요", value="", key=f"circ_{rk}")
+    
+    circ_str = st.text_input("파이프의 둘레(mm)을 입력하세요", value="", placeholder="둘레(mm) 입력", key=f"circ_{rk}")
     
     is_circ_entered = False
     calc_dia_mm = 0.0
@@ -117,7 +116,6 @@ def render(filtered_products, options_df, rk, cat_no_space):
                 if is_circ_entered:
                     product_specs = f"둘레 {circ_str.strip()}mm (지름 {calc_dia_mm:.0f}mm) / {sel_prod}"
                 else:
-                    # 💡 장바구니에도 표기되도록 연동
                     product_specs = f"{inch_display}인치({sel_inch_val * 25.4:.1f}mm) / {sel_prod}"
                     
                 if pd.notna(row.get('이미지파일명')): preview_images.append(str(row['이미지파일명']).strip())
@@ -249,6 +247,9 @@ def render(filtered_products, options_df, rk, cat_no_space):
 
             utils.render_generic_groups(cat_no_space, options_df, rk, priced_options, zero_options, preview_images)
 
+        # ---------------------------------------------------------------------------------
+        # 💡 [핵심] 각종 각도기 이미지 표시 완벽 차단 및 파일명 조합 처리
+        # ---------------------------------------------------------------------------------
         combo_names = []
         cam_kw = cam_type.replace("카메라", "") if cam_type != "선택 안 함" else ""
         shake_suffix = shake_kws[0] if shake_kws else ""
@@ -256,7 +257,8 @@ def render(filtered_products, options_df, rk, cat_no_space):
         base_combo = f"{cat_no_space}-{cam_kw}" if cam_kw else cat_no_space
         
         if cam_kw:
-            if sel_cam_part:
+            # 💡 [수정] 조합 키워드에서 각도기는 모두 빼고 생성합니다.
+            if sel_cam_part and "각도기" not in sel_cam_part:
                 part_kw = re.sub(r'\(.*?\)', '', sel_cam_part).strip()
                 combo_names.append(f"{base_combo}-{part_kw}{shake_suffix}")
                 combo_names.append(f"{base_combo}-{part_kw}")
@@ -268,7 +270,11 @@ def render(filtered_products, options_df, rk, cat_no_space):
         combo_names.append(cat_no_space)
         combo_names = list(dict.fromkeys(combo_names))
 
-        valid_paths = utils.display_images(combo_names, priced_options, zero_options, preview_images, img_col, cat_no_space)
+        # 💡 [수정] 개별 옵션 이미지를 가져올 때 "각도기"가 포함된 옵션 리스트는 원천 제외합니다.
+        display_priced_opts = [opt for opt in priced_options if "각도기" not in str(opt.get('cart_name', ''))]
+        display_zero_opts = [opt for opt in zero_options if "각도기" not in str(opt.get('cart_name', ''))]
+
+        valid_paths = utils.display_images(combo_names, display_priced_opts, display_zero_opts, preview_images, img_col, cat_no_space)
         return is_main_ready, base_price, product_specs, valid_paths, priced_options, zero_options
 
     return False, 0, "", [], [], []

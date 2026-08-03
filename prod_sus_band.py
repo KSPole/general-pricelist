@@ -181,7 +181,8 @@ def render(filtered_products, options_df, rk, cat_no_space):
         base_combo = f"{cat_no_space}-{cam_kw}" if cam_kw else cat_no_space
         
         if cam_kw:
-            if sel_cam_part:
+            # 💡 [핵심 수정 1] 파일명 조합에서 각도기가 포함된 부품은 빼고 조합을 만듭니다.
+            if sel_cam_part and "각도기" not in sel_cam_part:
                 part_kw = re.sub(r'\(.*?\)', '', sel_cam_part).strip()
                 combo_names.append(f"{base_combo}-{part_kw}{shake_suffix}")
                 combo_names.append(f"{base_combo}-{part_kw}")
@@ -193,7 +194,11 @@ def render(filtered_products, options_df, rk, cat_no_space):
         combo_names.append(cat_no_space)
         combo_names = list(dict.fromkeys(combo_names))
 
-        valid_paths = utils.display_images(combo_names, priced_options, zero_options, preview_images, img_col, cat_no_space)
+        # 💡 [핵심 수정 2] 각도기가 포함된 옵션 리스트는 이미지 표시 함수로 넘기지 않아서 화면에서 완전 차단합니다.
+        display_priced_opts = [opt for opt in priced_options if "각도기" not in str(opt.get('cart_name', ''))]
+        display_zero_opts = [opt for opt in zero_options if "각도기" not in str(opt.get('cart_name', ''))]
+
+        valid_paths = utils.display_images(combo_names, display_priced_opts, display_zero_opts, preview_images, img_col, cat_no_space)
         return is_main_ready, base_price, product_specs, valid_paths, priced_options, zero_options
 
     return False, 0, "", [], [], []
