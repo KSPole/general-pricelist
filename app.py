@@ -25,7 +25,7 @@ import prod_enclosure
 import prod_others
 import prod_i_bracket
 
-APP_VERSION = "v1.2.1"
+APP_VERSION = "v1.2.2"
 
 # 파비콘 및 기본 설정
 st.set_page_config(page_title="한국시스템폴 디지털 단가표", layout="wide", page_icon="🔵")
@@ -245,6 +245,7 @@ else:
     cat_no_space = excel_cat_name.replace(" ", "")
     filtered = products_df[products_df['카테고리'] == excel_cat_name]
 
+    # 💡 [핵심 수정] "로비폰" 또는 "보강판"이 이름에 포함되어 있으면, "함체"라는 글자가 있어도 무조건 prod_lobby를 열도록 꽉 잡아두었습니다!
     if cat_no_space == "CCTV폴": res = prod_cctv.render(filtered, options_df, rk, cat_no_space)
     elif cat_no_space == "벽부형브라켓": res = prod_wall.render(filtered, options_df, rk, cat_no_space)
     elif cat_no_space == "밴드형브라켓": res = prod_band.render(filtered, options_df, rk, cat_no_space)
@@ -252,7 +253,7 @@ else:
     elif cat_no_space == "옥상브라켓": res = prod_roof.render(filtered, options_df, rk, cat_no_space)
     elif cat_no_space == "천장형브라켓": res = prod_ceiling.render(filtered, options_df, rk, cat_no_space)
     elif cat_no_space == "하리형브라켓": res = prod_hari.render(filtered, options_df, rk, cat_no_space)
-    elif "로비폰보강판" in cat_no_space: res = prod_lobby.render(filtered, options_df, rk, cat_no_space)
+    elif "로비폰" in cat_no_space or "보강판" in cat_no_space: res = prod_lobby.render(filtered, options_df, rk, cat_no_space) # <- 여기가 해결 키포인트입니다!
     elif "뷸렛카메라박스" in cat_no_space or "각도기" in cat_no_space: res = prod_bullet_angle.render(filtered, options_df, rk, cat_no_space)
     elif "앙카베이스" in cat_no_space: res = prod_anchor_base.render(filtered, options_df, rk, cat_no_space)
     elif "i형(수직)브라켓" in cat_no_space or "i형" in cat_no_space:
@@ -286,8 +287,6 @@ if is_main_ready:
         c1, c2, c3, c4 = st.columns([4.5, 2, 2.5, 1])
         
         # ⭐ [수량 1 고정 버그 완벽 패치] 
-        # cart_name과 모듈이 넘겨준 진짜 수량(qty_per_main)을 key에 포함시켜,
-        # 수량 설정이 바뀌면 무조건 새로운 값으로 강제 업데이트되도록 스트림릿 캐시 회피!
         qty_val = int(o.get('qty_per_main', 1) * quantity)
         unique_key = f"q_opt_{idx}_{rk}_{o.get('cart_name', '')}_{o.get('qty_per_main', 1)}_{quantity}"
         
