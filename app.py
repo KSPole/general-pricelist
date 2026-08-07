@@ -25,7 +25,7 @@ import prod_enclosure
 import prod_others
 import prod_i_bracket
 
-APP_VERSION = "v1.2.11"
+APP_VERSION = "v1.2.12"
 
 # 파비콘 및 기본 설정
 st.set_page_config(page_title="한국시스템폴 디지털 단가표", layout="wide", page_icon="🔵")
@@ -153,7 +153,6 @@ if not st.session_state.logged_in:
     with c2:
         st.markdown("<h1 style='color: #2e6c80;'>한국시스템폴<br>제품 단가표</h1>", unsafe_allow_html=True)
 
-    # 💡 [핵심] 관리자 접속 설정 메뉴를 하단으로 이동
     if st.session_state.get('show_admin', False):
         st.markdown("<div style='max-width: 600px; margin: 0 auto; background-color:#f1f5f9; padding:15px; border-radius:10px; margin-bottom:20px; text-align:center;'>", unsafe_allow_html=True)
         admin_pw = st.text_input("본사 직원 비밀번호", placeholder="비밀번호를 입력하세요")
@@ -170,7 +169,6 @@ if not st.session_state.logged_in:
         c_name = st.text_input("업체명 (상호) *", placeholder="예: 한국시스템폴")
         p_phone_str = st.text_input("연락처 *", placeholder="연락처 숫자만 입력")
         st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
-        # 💡 [핵심] use_container_width 경고 패치 적용
         submitted = st.form_submit_button("단가표 접속하기", type="primary", width="stretch")
         
         if submitted:
@@ -206,7 +204,6 @@ with logout_col2:
 st.markdown("<hr style='margin-top:5px; margin-bottom:20px;'>", unsafe_allow_html=True)
 st.markdown("<div style='text-align: center;'>", unsafe_allow_html=True)
 
-# 💡 [핵심] 관리자 로그에 배송지 및 연락처 포맷 적용
 if st.session_state.is_admin:
     st.markdown("<h1 style='color: #2e6c80;'>한국시스템폴<br>제품 단가표 <span style='font-size:18px; color:#d9534f; vertical-align:middle;'>(관리자)</span></h1>", unsafe_allow_html=True)
     with st.expander("👑 고객 접속 및 장바구니 로그 확인"):
@@ -331,7 +328,6 @@ if is_main_ready:
             
         now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         
-        # 💡 [핵심] 장바구니 담기 시 로그 데이터 (배송정보란 추가 후 병합)
         log_data = pd.DataFrame([{
             "시간": now, 
             "구분": "장바구니 담기",
@@ -417,14 +413,15 @@ if st.session_state.cart:
     
     st.markdown("<h2>✉️ 주문 접수 및 견적서 메일 받기</h2>", unsafe_allow_html=True)
     
-    # 배송지 주소 찾기 링크 추가
-    st.markdown("<div style='display:flex; justify-content:space-between; align-items:flex-end; margin-top:10px;'><p style='font-size:15px; font-weight:bold; color:#333; margin-bottom:2px;'>배송지 주소 <span style='font-size:13px; color:#888; font-weight:normal;'>(택배/용달 필수, 경동화물은 지점명과 택1)</span></p><a href='https://www.juso.go.kr/openIndexPage.do' target='_blank' style='font-size:13px; color:#004b9b; text-decoration:none; background:#e8f4f8; padding:3px 8px; border-radius:4px; border:1px solid #c4e3ed;'>🔍 도로명 주소 검색</a></div>", unsafe_allow_html=True)
+    # 💡 [핵심] 모바일 줄바꿈 방지를 위해 텍스트 길이 최소화
+    st.markdown("<div style='display:flex; justify-content:space-between; align-items:flex-end; margin-top:10px;'><p style='font-size:15px; font-weight:bold; color:#333; margin-bottom:2px;'>배송지 주소</p><a href='https://www.juso.go.kr/openIndexPage.do' target='_blank' style='font-size:13px; color:#004b9b; text-decoration:none; background:#e8f4f8; padding:3px 8px; border-radius:4px; border:1px solid #c4e3ed;'>🔍 도로명 주소 검색</a></div>", unsafe_allow_html=True)
     st.session_state.d_addr = st.text_input("배송지 주소", value=st.session_state.get("d_addr", ""), placeholder="주문을 위해 배송받으실 주소를 정확히 입력해 주세요", label_visibility="collapsed")
     
     d_method = st.radio("배송 방법", ["택배", "경동화물", "용달", "방문"], horizontal=True)
     
     if d_method == "경동화물": 
-        st.markdown("<div style='display:flex; justify-content:space-between; align-items:flex-end; margin-top:10px;'><p style='font-size:15px; font-weight:bold; color:#333; margin-bottom:2px;'>경동화물 지점명 <span style='font-size:13px; color:#888; font-weight:normal;'>(주소 미입력 시 필수)</span></p><a href='https://kdexp.com/network/office.do' target='_blank' style='font-size:13px; color:#004b9b; text-decoration:none; background:#e8f4f8; padding:3px 8px; border-radius:4px; border:1px solid #c4e3ed;'>🔍 가까운 영업소 찾기</a></div>", unsafe_allow_html=True)
+        # 💡 [핵심] 모바일 줄바꿈 방지를 위해 텍스트 길이 최소화
+        st.markdown("<div style='display:flex; justify-content:space-between; align-items:flex-end; margin-top:10px;'><p style='font-size:15px; font-weight:bold; color:#333; margin-bottom:2px;'>경동화물 지점명</p><a href='https://kdexp.com/network/office.do' target='_blank' style='font-size:13px; color:#004b9b; text-decoration:none; background:#e8f4f8; padding:3px 8px; border-radius:4px; border:1px solid #c4e3ed;'>🔍 가까운 영업소 찾기</a></div>", unsafe_allow_html=True)
         st.session_state.d_branch = st.text_input("경동화물 지점명", value=st.session_state.d_branch, placeholder="모르실 경우 현장 주소를 입력해 주시면 확인 후 발송합니다.", label_visibility="collapsed")
         
     d_pay = st.radio("배송비 결제", ["선불", "착불"], horizontal=True)
@@ -608,7 +605,7 @@ if st.session_state.cart:
             email_html_body = html_template.replace('<span id="val_cname"></span>', mail_cname)
             email_html_body = email_html_body.replace('<span id="val_phone"></span>', mail_phone)
             
-            # 💡 [핵심] 주문 발송 시 로그 엑셀에도 기록 저장 (배송, 수령인 추가)
+            # 주문 발송 시 로그 엑셀에도 기록 저장 (배송, 수령인 추가)
             now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             order_items = " / ".join([f"[{item['p']}] {item['s']} ({item['q']}개)" for item in st.session_state.cart if not item.get('is_opt')])
             delivery_str = f"{d_method} {d_branch_str} ({d_pay})" if d_method else ""
