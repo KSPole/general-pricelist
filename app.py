@@ -25,7 +25,7 @@ import prod_enclosure
 import prod_others
 import prod_i_bracket
 
-APP_VERSION = "v1.2.2"
+APP_VERSION = "v1.2.11"
 
 # 파비콘 및 기본 설정
 st.set_page_config(page_title="한국시스템폴 디지털 단가표", layout="wide", page_icon="🔵")
@@ -66,18 +66,18 @@ document.addEventListener("DOMContentLoaded", function() {
         });
     }
 
-    // ⭐ [핵심 추가] 선택 메뉴(Selectbox) 터치 시 모바일 키보드 팝업 완벽 차단
+    // ⭐ 선택 메뉴(Selectbox) 터치 시 모바일 키보드 팝업 완벽 차단
     function disableKeyboardOnSelect() {
         const selectInputs = parentDoc.querySelectorAll('div[data-testid="stSelectbox"] input');
         selectInputs.forEach(input => {
-            input.setAttribute("inputmode", "none"); // 모바일 가상 키보드 무효화
-            input.setAttribute("readonly", "readonly"); // 텍스트 입력 기능 완전 차단
+            input.setAttribute("inputmode", "none"); 
+            input.setAttribute("readonly", "readonly"); 
         });
     }
 
     const observer = new MutationObserver(() => { 
         translateUploader(); 
-        disableKeyboardOnSelect(); // 화면이 바뀔 때마다 키보드 차단 로직 적용
+        disableKeyboardOnSelect(); 
     });
     observer.observe(parentDoc.body, { childList: true, subtree: true });
 });
@@ -133,8 +133,12 @@ if 'rk_main' not in st.session_state: st.session_state.rk_main = 0
 if 'rk_lvl1' not in st.session_state: st.session_state.rk_lvl1 = 0       
 if 'rk_lvl2' not in st.session_state: st.session_state.rk_lvl2 = 0       
 
-for field in ['c_name', 'p_phone', 'c_email', 'd_addr', 'd_branch']:
+# 수령인 및 동적 알림 변수 초기화
+for field in ['c_name', 'p_phone', 'c_email', 'd_addr', 'd_branch', 'r_name', 'r_phone']:
     if field not in st.session_state: st.session_state[field] = ""
+
+if 'show_skip_checkbox' not in st.session_state:
+    st.session_state.show_skip_checkbox = False
 
 rk = st.session_state.rk_main
 
@@ -142,20 +146,18 @@ rk = st.session_state.rk_main
 # 2. 로그인 폼 (일반 고객 및 톱니바퀴)
 # -----------------------------------------------------------------------------
 if not st.session_state.logged_in:
+    # 우측 상단에 버전 정보 배치
+    st.markdown(f"<div style='text-align: right; font-size: 13px; color: #888; font-weight: bold; margin-bottom: 5px;'>{APP_VERSION}</div>", unsafe_allow_html=True)
+    
     c1, c2, c3 = st.columns([2.5, 5, 2.5])
-    with c3:
-        st.markdown(f"<div style='text-align: right; font-size: 13px; color: #888; font-weight: bold; margin-bottom: 5px;'>{APP_VERSION}</div>", unsafe_allow_html=True)
-        if st.button("⚙️ 설정", use_container_width=True):
-            st.session_state.show_admin = not st.session_state.get('show_admin', False)
-            st.rerun()
-            
     with c2:
         st.markdown("<h1 style='color: #2e6c80;'>한국시스템폴<br>제품 단가표</h1>", unsafe_allow_html=True)
 
+    # 💡 [핵심] 관리자 접속 설정 메뉴를 하단으로 이동
     if st.session_state.get('show_admin', False):
-        st.markdown("<div style='background-color:#f1f5f9; padding:15px; border-radius:10px; margin-bottom:20px; text-align:center;'>", unsafe_allow_html=True)
+        st.markdown("<div style='max-width: 600px; margin: 0 auto; background-color:#f1f5f9; padding:15px; border-radius:10px; margin-bottom:20px; text-align:center;'>", unsafe_allow_html=True)
         admin_pw = st.text_input("본사 직원 비밀번호", placeholder="비밀번호를 입력하세요")
-        if st.button("관리자 접속", type="primary"):
+        if st.button("관리자 접속", type="primary", width="stretch"):
             if admin_pw.lower() == "locker1092***":
                 st.session_state.update({"c_name":"한국시스템폴", "p_phone":"010-3304-2221", "logged_in":True, "is_admin": True})
                 st.rerun()
@@ -168,7 +170,8 @@ if not st.session_state.logged_in:
         c_name = st.text_input("업체명 (상호) *", placeholder="예: 한국시스템폴")
         p_phone_str = st.text_input("연락처 *", placeholder="연락처 숫자만 입력")
         st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
-        submitted = st.form_submit_button("단가표 접속하기", type="primary", use_container_width=True)
+        # 💡 [핵심] use_container_width 경고 패치 적용
+        submitted = st.form_submit_button("단가표 접속하기", type="primary", width="stretch")
         
         if submitted:
             p_phone = re.sub(r'[^0-9]', '', p_phone_str) 
@@ -177,6 +180,12 @@ if not st.session_state.logged_in:
             else:
                 st.session_state.update({"c_name":c_name, "p_phone":p_phone, "logged_in":True, "is_admin": False})
                 st.rerun()
+                
+    st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
+    if st.button("⚙️ 관리자 설정", width="stretch"):
+        st.session_state.show_admin = not st.session_state.get('show_admin', False)
+        st.rerun()
+        
     st.markdown("</div>", unsafe_allow_html=True)
     st.stop()
 
@@ -188,7 +197,7 @@ with logout_col1:
     st.markdown(f"<div style='font-size:14px; font-weight:bold; color:#004b9b; padding-top:10px;'>🟢 접속중: {st.session_state.c_name}</div>", unsafe_allow_html=True)
 with logout_col2:
     st.markdown(f"<div style='text-align: right; font-size: 12px; color: #888; font-weight: bold;'>{APP_VERSION}</div>", unsafe_allow_html=True)
-    if st.button("로그아웃", use_container_width=True):
+    if st.button("로그아웃", width="stretch"):
         st.session_state.logged_in = False
         st.session_state.is_admin = False
         st.session_state.cart = []
@@ -197,15 +206,25 @@ with logout_col2:
 st.markdown("<hr style='margin-top:5px; margin-bottom:20px;'>", unsafe_allow_html=True)
 st.markdown("<div style='text-align: center;'>", unsafe_allow_html=True)
 
+# 💡 [핵심] 관리자 로그에 배송지 및 연락처 포맷 적용
 if st.session_state.is_admin:
     st.markdown("<h1 style='color: #2e6c80;'>한국시스템폴<br>제품 단가표 <span style='font-size:18px; color:#d9534f; vertical-align:middle;'>(관리자)</span></h1>", unsafe_allow_html=True)
     with st.expander("👑 고객 접속 및 장바구니 로그 확인"):
         if os.path.exists("access_log.csv"):
             try:
-                try:
-                    df_log = pd.read_csv("access_log.csv", on_bad_lines='skip')
-                except TypeError:
-                    df_log = pd.read_csv("access_log.csv", error_bad_lines=False)
+                # dtype=str 로 읽어와서 0이 잘리는 것을 1차로 방지
+                df_log = pd.read_csv("access_log.csv", on_bad_lines='skip', dtype=str).fillna("")
+                
+                if "연락처" in df_log.columns:
+                    def fix_phone(x):
+                        s = str(x).replace('.0', '').strip()
+                        # 이미 0이 날아갔을 경우 복구
+                        if len(s) == 10 and not s.startswith('0'):
+                            s = '0' + s
+                        if len(s) > 8 and "-" not in s:
+                            return utils.format_phone(s)
+                        return s
+                    df_log["연락처"] = df_log["연락처"].apply(fix_phone)
                 
                 if "시간" in df_log.columns:
                     df_log = df_log.sort_values(by="시간", ascending=False)
@@ -214,7 +233,7 @@ if st.session_state.is_admin:
                 
                 st.dataframe(df_log, use_container_width=True)
                 csv = df_log.to_csv(index=False, encoding='utf-8-sig').encode('utf-8-sig')
-                st.download_button(label="📥 접속 명단 엑셀 다운로드", data=csv, file_name='고객장바구니이력.csv', mime='text/csv')
+                st.download_button(label="📥 접속 명단 엑셀 다운로드", data=csv, file_name='고객주문이력.csv', mime='text/csv', width="stretch")
             except Exception as e: 
                 st.error(f"기록 정렬 중 문제가 발생했습니다: {e}")
         else: 
@@ -232,12 +251,12 @@ if st.session_state.selected_cat is None:
         for j in range(num_cols):
             if i + j < len(categories):
                 cat = categories[i + j]
-                if cols[j].button(cat, use_container_width=True, type="secondary", key=f"cat_{cat}_{rk}"):
+                if cols[j].button(cat, width="stretch", type="secondary", key=f"cat_{cat}_{rk}"):
                     st.session_state.selected_cat = cat
                     st.session_state.rk_main += 1
                     st.rerun()
 else:
-    if st.button(f"⬅️ {st.session_state.selected_cat} (뒤로가기)", type="primary"):
+    if st.button(f"⬅️ {st.session_state.selected_cat} (뒤로가기)", type="primary", width="stretch"):
         st.session_state.selected_cat = None
         st.rerun()
 
@@ -245,7 +264,6 @@ else:
     cat_no_space = excel_cat_name.replace(" ", "")
     filtered = products_df[products_df['카테고리'] == excel_cat_name]
 
-    # 💡 [핵심 수정] "로비폰" 또는 "보강판"이 이름에 포함되어 있으면, "함체"라는 글자가 있어도 무조건 prod_lobby를 열도록 꽉 잡아두었습니다!
     if cat_no_space == "CCTV폴": res = prod_cctv.render(filtered, options_df, rk, cat_no_space)
     elif cat_no_space == "벽부형브라켓": res = prod_wall.render(filtered, options_df, rk, cat_no_space)
     elif cat_no_space == "밴드형브라켓": res = prod_band.render(filtered, options_df, rk, cat_no_space)
@@ -253,7 +271,7 @@ else:
     elif cat_no_space == "옥상브라켓": res = prod_roof.render(filtered, options_df, rk, cat_no_space)
     elif cat_no_space == "천장형브라켓": res = prod_ceiling.render(filtered, options_df, rk, cat_no_space)
     elif cat_no_space == "하리형브라켓": res = prod_hari.render(filtered, options_df, rk, cat_no_space)
-    elif "로비폰" in cat_no_space or "보강판" in cat_no_space: res = prod_lobby.render(filtered, options_df, rk, cat_no_space) # <- 여기가 해결 키포인트입니다!
+    elif "로비폰" in cat_no_space or "보강판" in cat_no_space: res = prod_lobby.render(filtered, options_df, rk, cat_no_space)
     elif "뷸렛카메라박스" in cat_no_space or "각도기" in cat_no_space: res = prod_bullet_angle.render(filtered, options_df, rk, cat_no_space)
     elif "앙카베이스" in cat_no_space: res = prod_anchor_base.render(filtered, options_df, rk, cat_no_space)
     elif "i형(수직)브라켓" in cat_no_space or "i형" in cat_no_space:
@@ -286,7 +304,6 @@ if is_main_ready:
     for idx, o in enumerate(priced_options):
         c1, c2, c3, c4 = st.columns([4.5, 2, 2.5, 1])
         
-        # ⭐ [수량 1 고정 버그 완벽 패치] 
         qty_val = int(o.get('qty_per_main', 1) * quantity)
         unique_key = f"q_opt_{idx}_{rk}_{o.get('cart_name', '')}_{o.get('qty_per_main', 1)}_{quantity}"
         
@@ -301,7 +318,7 @@ if is_main_ready:
     uploaded_files = st.file_uploader("도면, 스케치, 현장 사진 등 첨부", accept_multiple_files=True, key=f"file_upl_{rk}")
     st.markdown(f"<div class='summary-box'><div class='summary-price'>{utils.format_price(total, product_specs)}</div></div>", unsafe_allow_html=True)
 
-    if st.button("🛒 장바구니에 담기", type="primary", use_container_width=True):
+    if st.button("🛒 장바구니에 담기", type="primary", width="stretch"):
         import time
         bid, files_data = str(time.time()), []
         if uploaded_files:
@@ -313,10 +330,24 @@ if is_main_ready:
         if opt_str: item_summary += f" / 옵션: {opt_str}"
             
         now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        log_data = pd.DataFrame([{"시간": now, "업체명": st.session_state.c_name, "연락처": st.session_state.p_phone, "담은 제품": item_summary}])
+        
+        # 💡 [핵심] 장바구니 담기 시 로그 데이터 (배송정보란 추가 후 병합)
+        log_data = pd.DataFrame([{
+            "시간": now, 
+            "구분": "장바구니 담기",
+            "업체명": st.session_state.c_name, 
+            "연락처": utils.format_phone(st.session_state.p_phone), 
+            "내용/담은제품": item_summary,
+            "배송지_및_방법": "",
+            "수령인_정보": ""
+        }])
         try:
-            if not os.path.exists("access_log.csv"): log_data.to_csv("access_log.csv", index=False, encoding='utf-8-sig')
-            else: log_data.to_csv("access_log.csv", mode='a', header=False, index=False, encoding='utf-8-sig')
+            if not os.path.exists("access_log.csv"): 
+                log_data.to_csv("access_log.csv", index=False, encoding='utf-8-sig')
+            else: 
+                old_df = pd.read_csv("access_log.csv", on_bad_lines='skip', dtype=str)
+                new_df = pd.concat([old_df, log_data], ignore_index=True)
+                new_df.to_csv("access_log.csv", index=False, encoding='utf-8-sig')
         except: pass
         
         st.session_state.cart.append({"bid": bid, "is_opt": False, "p": st.session_state.selected_cat, "s": product_specs, "o": opts_txt, "q": quantity, "u": base_price, "t": base_price * quantity, "files": files_data, "img_paths": valid_paths})
@@ -385,14 +416,34 @@ if st.session_state.cart:
     st.markdown(f"<div style='background-color:#333; color:white; border-radius:8px; padding:20px; text-align:center; margin-bottom:20px;'><div style='font-size:32px; font-weight:900;'>총 합계: {int(total_sum):,}원</div></div>", unsafe_allow_html=True)
     
     st.markdown("<h2>✉️ 주문 접수 및 견적서 메일 받기</h2>", unsafe_allow_html=True)
-    st.session_state.d_addr = st.text_input("배송지 주소 (선택사항)", value=st.session_state.get("d_addr", ""))
+    
+    # 배송지 주소 찾기 링크 추가
+    st.markdown("<div style='display:flex; justify-content:space-between; align-items:flex-end; margin-top:10px;'><p style='font-size:15px; font-weight:bold; color:#333; margin-bottom:2px;'>배송지 주소 <span style='font-size:13px; color:#888; font-weight:normal;'>(택배/용달 필수, 경동화물은 지점명과 택1)</span></p><a href='https://www.juso.go.kr/openIndexPage.do' target='_blank' style='font-size:13px; color:#004b9b; text-decoration:none; background:#e8f4f8; padding:3px 8px; border-radius:4px; border:1px solid #c4e3ed;'>🔍 도로명 주소 검색</a></div>", unsafe_allow_html=True)
+    st.session_state.d_addr = st.text_input("배송지 주소", value=st.session_state.get("d_addr", ""), placeholder="주문을 위해 배송받으실 주소를 정확히 입력해 주세요", label_visibility="collapsed")
     
     d_method = st.radio("배송 방법", ["택배", "경동화물", "용달", "방문"], horizontal=True)
-    if d_method == "경동화물": st.session_state.d_branch = st.text_input("경동화물 지점명 (입력 후 엔터)", value=st.session_state.d_branch)
+    
+    if d_method == "경동화물": 
+        st.markdown("<div style='display:flex; justify-content:space-between; align-items:flex-end; margin-top:10px;'><p style='font-size:15px; font-weight:bold; color:#333; margin-bottom:2px;'>경동화물 지점명 <span style='font-size:13px; color:#888; font-weight:normal;'>(주소 미입력 시 필수)</span></p><a href='https://kdexp.com/network/office.do' target='_blank' style='font-size:13px; color:#004b9b; text-decoration:none; background:#e8f4f8; padding:3px 8px; border-radius:4px; border:1px solid #c4e3ed;'>🔍 가까운 영업소 찾기</a></div>", unsafe_allow_html=True)
+        st.session_state.d_branch = st.text_input("경동화물 지점명", value=st.session_state.d_branch, placeholder="모르실 경우 현장 주소를 입력해 주시면 확인 후 발송합니다.", label_visibility="collapsed")
+        
     d_pay = st.radio("배송비 결제", ["선불", "착불"], horizontal=True)
     
+    # 수령인 정보 입력칸
+    st.markdown("<div style='margin-top:10px;'></div>", unsafe_allow_html=True)
+    r_c1, r_c2 = st.columns(2)
+    with r_c1:
+        st.session_state.r_name = st.text_input("받는 사람 이름 (필수)", value=st.session_state.get("r_name", ""), placeholder="수령인 이름 입력")
+    with r_c2:
+        st.session_state.r_phone = st.text_input("받는 사람 연락처 (필수)", value=st.session_state.get("r_phone", ""), placeholder="수령인 연락처 입력")
+    
+    # 사업자등록증 첨부 파일 업로더
+    st.markdown("<div style='margin-top:10px;'></div>", unsafe_allow_html=True)
+    biz_reg_file = st.file_uploader("🏢 사업자등록증 사본 첨부 (선택사항 / 스마트폰에서는 카메라 촬영 지원)", type=['png', 'jpg', 'jpeg', 'pdf'])
+    
     st.markdown("<hr style='margin:20px 0;'>", unsafe_allow_html=True)
-    st.markdown("<p style='font-size:16px; font-weight:bold; color:#2e6c80; margin-bottom:5px;'>📧 견적서 수신용 이메일 주소 (내 메일로 받기 클릭 시 필수)</p>", unsafe_allow_html=True)
+    
+    st.markdown("<p style='font-size:16px; font-weight:bold; color:#2e6c80; margin-bottom:5px;'>📧 견적서 수신용 이메일 주소</p>", unsafe_allow_html=True)
     
     email_col1, email_col2 = st.columns(2)
     with email_col1:
@@ -411,7 +462,29 @@ if st.session_state.cart:
         st.session_state.c_email = final_email
     else:
         st.session_state.c_email = ""
+        
+    if st.session_state.c_email:
+        st.session_state.show_skip_checkbox = False
 
+    if st.session_state.show_skip_checkbox and not st.session_state.c_email:
+        st.markdown("<div style='background-color:#fff3cd; color:#856404; padding:15px; border-radius:5px; border:1px solid #ffeeba; margin-bottom:15px;'>", unsafe_allow_html=True)
+        st.markdown("<b>⚠️ 주문서만 보내겠습니까?</b><br>견적서를 메일로 받으시려면 <b>위의 메일 주소</b>를 입력해주세요.<br>견적서 수신 없이 주문서만 발송하시려면 <b>아래 체크박스를 선택</b> 후 다시 버튼을 눌러주세요.", unsafe_allow_html=True)
+        skip_email_checked = st.checkbox("☑️ 주문서만 발송", key="skip_email_checked")
+        st.markdown("</div>", unsafe_allow_html=True)
+    else:
+        skip_email_checked = st.session_state.get("skip_email_checked", False)
+
+    # 견적서 HTML 생성
+    if d_method == "경동화물":
+        if st.session_state.d_branch:
+            d_branch_str = f"({st.session_state.d_branch})"
+        else:
+            d_branch_str = "(지점 미입력 - 본사에서 현장 주소 확인 후 발송)"
+    else:
+        d_branch_str = ""
+        
+    biz_attached_str = "첨부됨" if biz_reg_file is not None else "없음"
+    
     html_template = f"""
     <html>
     <head>
@@ -431,10 +504,14 @@ if st.session_state.cart:
         <h1 style="text-align:center; font-size:30px;">견 적 서</h1>
         <p style="text-align:right;">발행일: {pd.Timestamp.now().strftime('%Y-%m-%d')}<br>공급자: 한국시스템폴</p>
         
-        <h3>👤 고객 정보</h3>
+        <h3>👤 고객 및 배송 정보</h3>
         <ul>
-            <li><b>업체명:</b> <span id="val_cname"></span></li>
-            <li><b>연락처:</b> <span id="val_phone"></span></li>
+            <li><b>주문자:</b> <span id="val_cname"></span> (<span id="val_phone"></span>)</li>
+            <li><b>받는 사람:</b> {st.session_state.r_name} ({st.session_state.r_phone})</li>
+            <li><b>배송지 주소:</b> {st.session_state.d_addr}</li>
+            <li><b>배송 방법:</b> {d_method} {d_branch_str}</li>
+            <li><b>배송비 결제:</b> {d_pay}</li>
+            <li><b>사업자등록증:</b> {biz_attached_str}</li>
         </ul>
 
         <table>
@@ -465,8 +542,8 @@ if st.session_state.cart:
 
     st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
     btn_c1, btn_c2, btn_c3 = st.columns([1.2, 1, 1.2])
-    with btn_c1: submit_btn = st.button("🚀 주문 접수 메일 보내기", type="primary", use_container_width=True)
-    with btn_c2: send_quote_btn = st.button("📧 내 메일로 견적서만 받기", use_container_width=True)
+    with btn_c1: submit_btn = st.button("🚀 주문서 보내기 / 내 메일로도 견적서 받기", type="primary", width="stretch")
+    with btn_c2: send_quote_btn = st.button("📧 내 메일로 견적서만 받기", width="stretch")
     with btn_c3:
         prt = f"""
         <button onclick='openP()' style='width:100%;height:42px;background:#2e6c80;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:bold;'>🖨️ 견적서 인쇄/저장 (PC권장)</button>
@@ -498,11 +575,23 @@ if st.session_state.cart:
         """
         components.html(prt, height=45)
 
+    # 버튼 클릭 시 방어 로직 및 메일 발송
     if submit_btn or send_quote_btn:
         if not st.session_state.c_name or not st.session_state.p_phone:
-            st.warning("⚠️ 입력 정보가 누락되었습니다.")
+            st.warning("⚠️ 업체명과 연락처 정보가 누락되었습니다. 새로고침 후 다시 로그인해 주세요.")
+        elif submit_btn and d_method != "경동화물" and not st.session_state.d_addr:
+            st.warning("⚠️ 주문을 처리하기 위해 '배송지 주소'를 입력해 주세요.")
+        elif submit_btn and d_method == "경동화물" and not st.session_state.d_addr and not st.session_state.d_branch:
+            st.warning("⚠️ 경동화물 배송을 위해 '배송지 주소' 또는 '경동화물 지점명' 중 하나를 반드시 입력해 주세요.")
+        elif submit_btn and not st.session_state.r_name:
+            st.warning("⚠️ '받는 사람 이름'을 입력해 주세요.")
+        elif submit_btn and not st.session_state.r_phone:
+            st.warning("⚠️ '받는 사람 연락처'를 입력해 주세요.")
         elif send_quote_btn and not st.session_state.c_email:
             st.warning("⚠️ 견적서를 받으실 이메일 주소를 입력해 주세요.")
+        elif submit_btn and not st.session_state.c_email and not skip_email_checked:
+            st.session_state.show_skip_checkbox = True
+            st.rerun() 
         else:
             if submit_btn:  
                 mail_cname = st.session_state.c_name
@@ -519,6 +608,31 @@ if st.session_state.cart:
             email_html_body = html_template.replace('<span id="val_cname"></span>', mail_cname)
             email_html_body = email_html_body.replace('<span id="val_phone"></span>', mail_phone)
             
+            # 💡 [핵심] 주문 발송 시 로그 엑셀에도 기록 저장 (배송, 수령인 추가)
+            now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            order_items = " / ".join([f"[{item['p']}] {item['s']} ({item['q']}개)" for item in st.session_state.cart if not item.get('is_opt')])
+            delivery_str = f"{d_method} {d_branch_str} ({d_pay})" if d_method else ""
+            receiver_str = f"{st.session_state.r_name} / {st.session_state.r_phone}" if st.session_state.r_name else ""
+            
+            log_type = "주문 발송 완료" if submit_btn else "견적서 발송 완료"
+            log_data = pd.DataFrame([{
+                "시간": now, 
+                "구분": log_type,
+                "업체명": st.session_state.c_name, 
+                "연락처": utils.format_phone(st.session_state.p_phone), 
+                "내용/담은제품": order_items,
+                "배송지_및_방법": f"{st.session_state.d_addr} | {delivery_str}",
+                "수령인_정보": receiver_str
+            }])
+            try:
+                if not os.path.exists("access_log.csv"): 
+                    log_data.to_csv("access_log.csv", index=False, encoding='utf-8-sig')
+                else: 
+                    old_df = pd.read_csv("access_log.csv", on_bad_lines='skip', dtype=str)
+                    new_df = pd.concat([old_df, log_data], ignore_index=True)
+                    new_df.to_csv("access_log.csv", index=False, encoding='utf-8-sig')
+            except: pass
+
             try:
                 import smtplib
                 from email.message import EmailMessage
@@ -537,15 +651,31 @@ if st.session_state.cart:
                 attachment_data = email_html_body.encode('utf-8')
                 msg.add_attachment(attachment_data, maintype='text', subtype='html', filename="KSP_견적서.html")
                 
+                if biz_reg_file is not None:
+                    file_bytes = biz_reg_file.getvalue()
+                    file_type = biz_reg_file.type if biz_reg_file.type else 'application/octet-stream'
+                    if '/' in file_type:
+                        maintype, subtype = file_type.split('/', 1)
+                    else:
+                        maintype, subtype = 'application', 'octet-stream'
+                    msg.add_attachment(file_bytes, maintype=maintype, subtype=subtype, filename=f"사업자등록증_{biz_reg_file.name}")
+                
                 srv = smtplib.SMTP('smtp.gmail.com', 587)
                 srv.starttls()
                 srv.login(EMAIL_SENDER, EMAIL_PASSWORD)
                 srv.send_message(msg)
                 srv.quit()
                 
-                if submit_btn: st.session_state.cart = []
                 st.session_state.mail_sent = True
-                st.success("✅ 메일 발송이 완료되었습니다! (견적서 파일 첨부)")
-                st.rerun()
+                
+                if submit_btn:
+                    if st.session_state.c_email:
+                        st.success("✅ 주문서 메일 발송이 완료되었습니다! (입력하신 메일로도 견적서가 함께 발송되었습니다)")
+                    else:
+                        st.success("✅ 본사로 주문서 발송이 완료되었습니다!")
+                        st.session_state.show_skip_checkbox = False
+                else:
+                    st.success("✅ 입력하신 메일로 견적서 발송이 완료되었습니다!")
+                    
             except Exception as e: 
                 st.error(f"❌ 발송 실패: {e}")

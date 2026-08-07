@@ -122,7 +122,7 @@ def render(filtered_products, options_df, rk, cat_no_space):
             is_main_ready = True
             combo_names = ["스텐밴드형 뷸렛카메라박스"]
             
-        # 💡 4. 밴드형 뷸렛카메라박스 (인치 선택)
+        # 💡 4. 밴드형 뷸렛카메라박스
         elif sel_bullet == "밴드형 뷸렛카메라박스":
             st.markdown("<div style='font-size:14px; margin-top:10px; margin-bottom:5px; color:#555;'>👉 설치할 파이프 직경 선택</div>", unsafe_allow_html=True)
             inch_opts = ["2.5인치", "3인치", "4인치", "5인치", "6인치"]
@@ -131,7 +131,6 @@ def render(filtered_products, options_df, rk, cat_no_space):
             inch_val = float(sel_inch.replace("인치", "").strip())
             match_df = pd.DataFrame()
             if '제품명_검색용' in df_pm.columns and inch_col:
-                # 괄호 문법 오류 수정 완료된 영역
                 match_df = df_pm[(df_pm['제품명_검색용'] == '밴드형뷸렛카메라박스') & 
                                  (pd.to_numeric(df_pm[inch_col], errors='coerce') == inch_val)]
             
@@ -145,7 +144,7 @@ def render(filtered_products, options_df, rk, cat_no_space):
             is_main_ready = True
             combo_names = ["밴드형 뷸렛카메라박스"]
             
-        # 💡 5. 주문형 스텐 카메라박스 (주문제작)
+        # 💡 5. 주문형 스텐 카메라박스
         elif sel_bullet == "주문형 스텐 카메라박스":
             st.markdown("<div style='font-size:14px; margin-top:10px; margin-bottom:5px; color:#555;'>👉 주문제작 치수 입력 (mm)</div>", unsafe_allow_html=True)
             c1, c2, c3 = st.columns(3)
@@ -153,16 +152,19 @@ def render(filtered_products, options_df, rk, cat_no_space):
             c_d = c2.number_input("세로 (mm)", min_value=0, value=None, step=10, key=f"cd_{rk}", placeholder="예: 150")
             c_h = c3.number_input("높이 (mm)", min_value=0, value=None, step=10, key=f"ch_{rk}", placeholder="예: 150")
             
-            if c_w is not None and c_d is not None and c_h is not None and c_w > 0 and c_d > 0 and c_h > 0:
-                base_price = 0
+            # 💡 [핵심] 메뉴 선택하는 순간 곧바로 이미지와 하단 옵션을 표출하도록 True 설정
+            is_main_ready = True
+            base_price = 0
+            combo_names = ["주문형 스텐 뷸렛카메라박스"]
+            
+            # 단, 치수를 입력하지 않았을 때는 스펙에 미입력 안내 문구 표출
+            if c_w and c_d and c_h:
                 product_specs = f"주문형 스텐 뷸렛카메라박스 - 가로:{int(c_w)} x 세로:{int(c_d)} x 높이:{int(c_h)}"
-                st.markdown("<div style='font-size:15px; font-weight:bold; color:#d9534f; margin-top:10px;'>💡 단가: 주문제작 단가 (별도 안내)</div>", unsafe_allow_html=True)
-                is_main_ready = True
-                combo_names = ["주문형 스텐 뷸렛카메라박스"]
             else:
-                is_main_ready = False
-                st.warning("⚠️ 가로, 세로, 높이에 제작하실 치수(mm)를 모두 입력해 주세요.")
-                combo_names = ["주문형 스텐 뷸렛카메라박스"]
+                product_specs = "주문형 스텐 뷸렛카메라박스 (치수 미입력)"
+                st.warning("⚠️ 주문하실 가로, 세로, 높이 치수를 입력해 주세요.")
+                
+            st.markdown("<div style='font-size:15px; font-weight:bold; color:#d9534f; margin-top:10px;'>💡 단가: 주문제작 단가 (별도 안내)</div>", unsafe_allow_html=True)
 
     # 💡 6. 각도기
     elif main_type == "각도기":
